@@ -100,11 +100,30 @@ Uma nota só é salva se a soma dos itens fechar com o total; senão a resposta 
 divergências e é preciso reenviar com `forcar=true` depois de conferir.
 `salvar=false` devolve só a prévia.
 
+## App (Android, Expo)
+
+```bash
+cd app
+cp .env.exemplo .env.local      # coloque o IP do Mac: http://SEU-IP:8000
+npx expo start                  # abra no celular pelo Expo Go
+```
+
+Fluxo: **Escanear cupom** -> câmera lê o QR -> a consulta da SEFAZ abre dentro do app ->
+você resolve o captcha -> o app captura a página e envia para a API -> "Compra salva!".
+
+Observações aprendidas na prática:
+- Celular e Mac na mesma rede, sem isolamento de clientes no roteador.
+- A SEFAZ-SP bloqueia temporariamente o IP (inclusive de dados móveis) quando detecta acesso
+  suspeito. A WebView fica no padrão, sem disfarçar user-agent ou cabeçalhos, e não se deve
+  insistir quando aparecer "The requested URL was rejected".
+
 ## Próximos passos
 
 - [x] API (FastAPI)
 - [x] Importação pela SEFAZ no computador (navegador, usuário resolve o captcha)
-- [ ] App: câmera lê o QR -> WebView da SEFAZ (captcha) -> envia o HTML para a API
+- [x] App Android: câmera lê o QR -> WebView da SEFAZ (captcha) -> envia o HTML para a API
+- [ ] App no iPhone
+- [ ] API num servidor (usar o app fora de casa)
 - [ ] Normalizar produtos (mesmo item com descrições diferentes)
 - [ ] Estoque da casa (o que tem e quantidades)
 - [ ] Perguntas e respostas sobre as compras (LangGraph / agentes)

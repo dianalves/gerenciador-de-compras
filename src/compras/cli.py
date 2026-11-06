@@ -281,8 +281,10 @@ def api(
 
     import uvicorn
 
-    try:
-        ip = socket.gethostbyname(socket.gethostname())
+    try:  # descobre o IP do Mac na rede local (não envia nada, só consulta a rota)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
     except OSError:
         ip = "IP-do-Mac"
     console.print(f"[green]API em http://localhost:{porta}/docs[/green]  "

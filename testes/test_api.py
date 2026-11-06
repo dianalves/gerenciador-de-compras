@@ -121,3 +121,11 @@ def test_foto_com_conta_errada_so_salva_se_forcar(cliente, monkeypatch):
 
     r = cliente.post("/notas/foto?forcar=true", files=arquivo).json()
     assert r["salva"] is True
+
+
+def test_procura_por_chave(cliente):
+    chave = "35261112345678000199650010000012341000123456"
+    assert cliente.get(f"/compras/chave/{chave}").status_code == 404
+    cliente.post("/notas/sefaz?usar_modelo=false", json={"html": HTML, "link": LINK})
+    r = cliente.get(f"/compras/chave/{chave}")
+    assert r.status_code == 200 and r.json()["estabelecimento"] == "SUPERMERCADO TESTE LTDA"

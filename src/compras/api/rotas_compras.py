@@ -26,6 +26,16 @@ def listar(limite: int = Query(50, le=500), sessao: Session = Depends(obter_sess
     return [CompraResumo(**_resumo(c)) for c in compras]
 
 
+@roteador.get("/chave/{chave}", response_model=CompraResumo,
+              summary="Procura a compra pela chave de acesso (44 dígitos) da NFC-e")
+def por_chave(chave: str, sessao: Session = Depends(obter_sessao)):
+    """O app chama isto logo depois de ler o QR: se a nota já existe, nem abre a SEFAZ."""
+    compra = sessao.scalar(select(Compra).where(Compra.chave_acesso == chave))
+    if compra is None:
+        raise HTTPException(404, "Nota ainda não cadastrada")
+    return CompraResumo(**_resumo(compra))
+
+
 @roteador.get("/{compra_id}", response_model=CompraDetalhe, summary="Uma compra com seus itens")
 def detalhar(compra_id: int, sessao: Session = Depends(obter_sessao)):
     compra = sessao.get(Compra, compra_id)
