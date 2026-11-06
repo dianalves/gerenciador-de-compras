@@ -1,0 +1,89 @@
+# Gerenciador de Compras
+
+Sistema para autogerenciar as compras de mercado da casa: você tira a foto da
+NFC-e, um modelo multimodal lê a nota e os itens vão para o PostgreSQL. Daí saem
+gasto mensal, gasto por categoria e os produtos com que mais se gasta.
+
+## Como a nota entra no sistema
+
+1. **QR code + SEFAZ (principal)**: escaneia o QR do cupom, abre a consulta da
+   SEFAZ, o usuário resolve o captcha e os itens vêm do HTML oficial: valores
+   exatos, rápido, sem IA (categorias por palavras-chave).
+2. **Foto do cupom + modelo de visão (alternativa)**: para QR danificado/ilegível.
+   Funciona com modelo local (LM Studio) ou na nuvem, mas pode confundir dígitos
+   (ex.: 6 e 8), por isso confere a soma, lê em fatias e aponta itens duvidosos.
+
+## Arquitetura
+
+```
+foto da nota
+   -> visao/     (Claude | Gemini | OpenAI | LM Studio local)
+   -> nota/      (JSON validado)
+   -> servicos/  (grava e consulta)
+   -> PostgreSQL
+   -> cli.py hoje; API + app no futuro
+```
+
+```
+src/compras/
+├── config.py          # lê o .env
+├── visao/             # camada de provedor de visão (troca pela config)
+│   ├── base.py        #   contrato ProvedorVisao
+│   ├── claude.py / gemini.py / openai.py
+│   └── fabrica.py     #   obter_provedor()
+├── nota/
+│   ├── esquema.py     # NotaFiscal / ItemNota (Pydantic) + categorias
+│   ├── prompt.py      # prompt de extração
+│   └── leitor.py      # ler_nota(imagem) -> NotaFiscal
+├── banco/
+│   ├── conexao.py     # engine/sessão SQLAlchemy
+│   └── modelos.py     # estabelecimentos, compras, itens_compra
+├── servicos/
+│   ├── importar.py    # salvar_nota() (evita duplicar pela chave de acesso)
+│   └── consultas.py   # gasto por mês / categoria / top produtos
+├── sefaz/             # (próximo) importação via WebView + captcha
+└── cli.py             # comando `compras`
+```
+
+## Como rodar
+
+```bash
+cd ~/git/gerenciador-de-compras
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[lmstudio,dev]"      # ou .[claude], .[gemini], .[openai], .[todos]
+cp .env.exemplo .env                   # preencha a chave da API
+docker compose up -d                   # sobe o PostgreSQL
+compras iniciar-banco
+
+compras ler notas/minha_nota.jpg       # só mostra o que foi lido
+compras importar notas/minha_nota.jpg  # lê e grava
+compras importar notas/x.jpg --provedor gemini
+compras gastos
+compras categorias 2026 11
+compras top
+pytest
+```
+
+### Importar pela SEFAZ (valores exatos)
+
+```bash
+pip install -e ".[lmstudio,sefaz,dev]"
+playwright install chromium            # só na primeira vez (se não tiver o Chrome)
+compras sefaz notas/minha_nota.jpg     # lê o QR code da foto
+compras sefaz "https://www.nfce.fazenda.sp.gov.br/...?p=..."   # ou o link do QR
+compras sefaz notas/minha_nota.jpg --salvar
+```
+
+Abre o navegador na consulta da SEFAZ; você resolve o captcha (SP exige) e o
+programa lê os itens direto do HTML. O modelo só é usado para as categorias
+(e como plano B, lendo o texto da página, se o layout for diferente).
+
+## Próximos passos
+
+- [ ] API (FastAPI) para receber foto pelo celular
+- [x] Importação pela SEFAZ no computador (navegador, usuário resolve o captcha)
+- [ ] App: câmera lê o QR -> WebView da SEFAZ (captcha) -> envia o HTML para a API
+- [ ] Normalizar produtos (mesmo item com descrições diferentes)
+- [ ] Estoque da casa (o que tem e quantidades)
+- [ ] Perguntas e respostas sobre as compras (LangGraph / agentes)
+- [ ] Migrações com Alembic

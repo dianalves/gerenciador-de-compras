@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+notas/*
+!notas/.gitkeep
+.pytest_cache/
+*.egg-info/
+
+# Sistema / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Banco local, se usar SQLite em testes
+*.db
