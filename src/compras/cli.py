@@ -270,5 +270,25 @@ def top(limite: int = 10):
     console.print(tabela)
 
 
+@app.command()
+def api(
+    host: str = typer.Option("0.0.0.0", help="0.0.0.0 = acessível pelo celular na mesma rede"),
+    porta: int = typer.Option(8000),
+    recarregar: bool = typer.Option(False, "--recarregar", help="Reinicia ao salvar arquivos"),
+):
+    """Sobe a API. Documentação interativa em http://localhost:8000/docs"""
+    import socket
+
+    import uvicorn
+
+    try:
+        ip = socket.gethostbyname(socket.gethostname())
+    except OSError:
+        ip = "IP-do-Mac"
+    console.print(f"[green]API em http://localhost:{porta}/docs[/green]  "
+                  f"(no celular, mesma rede Wi-Fi: http://{ip}:{porta})")
+    uvicorn.run("compras.api.app:app", host=host, port=porta, reload=recarregar)
+
+
 if __name__ == "__main__":
     app()

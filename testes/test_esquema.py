@@ -102,7 +102,7 @@ def _itens(*descricoes):
 def test_categorias_modelo_desligado_usa_palavras():
     from compras.nota.categorizar import categorizar_detalhado
     modelo = _ModeloFalso(erro=ConnectionError("recusado"))
-    r = categorizar_detalhado(_itens("CERVEJA SPATEN", "ALHO Kg", "CAJU DO NORTE"), modelo)
+    r = categorizar_detalhado(_itens("CERVEJA SPATEN", "ALHO Kg", "PRODUTO DESCONHECIDO XYZ"), modelo)
     assert [i.categoria for i in r.itens] == ["bebidas", "hortifruti", "mercearia"]
     assert r.origens == ["palavras", "palavras", "padrao"]
     assert r.erro_modelo == "ConnectionError"
@@ -112,11 +112,11 @@ def test_modelo_nao_altera_o_que_as_palavras_reconhecem():
     """O LM classificou alho como mercearia e bala como padaria: não pode mais acontecer."""
     from compras.nota.categorizar import categorizar_detalhado
     modelo = _ModeloFalso(['{"categorias": {"1": "frios_laticinios"}}'])
-    r = categorizar_detalhado(_itens("FLV ALHO A GRANEL Kg", "BALA FINI 80G", "CAJU DO NORTE"),
+    r = categorizar_detalhado(_itens("FLV ALHO A GRANEL Kg", "BALA FINI 80G", "PRODUTO DESCONHECIDO XYZ"),
                               modelo)
     assert [i.categoria for i in r.itens] == ["hortifruti", "mercearia", "frios_laticinios"]
     assert r.origens == ["palavras", "palavras", "modelo"]
-    assert modelo.chamadas == 1  # só o caju foi perguntado ao modelo
+    assert modelo.chamadas == 1  # só o desconhecido foi perguntado ao modelo
 
 
 def test_modelo_nem_e_chamado_se_tudo_foi_reconhecido():
@@ -128,7 +128,7 @@ def test_modelo_nem_e_chamado_se_tudo_foi_reconhecido():
 
 def test_resposta_invalida_do_modelo_cai_no_padrao():
     from compras.nota.categorizar import categorizar_detalhado
-    r = categorizar_detalhado(_itens("CAJU DO NORTE", "XPTO 123"),
+    r = categorizar_detalhado(_itens("PRODUTO DESCONHECIDO XYZ", "XPTO 123"),
                               _ModeloFalso(['{"categorias": {"1": "inventada"}}']))
     assert [i.categoria for i in r.itens] == ["mercearia", "mercearia"]
     assert r.origens == ["padrao", "padrao"]

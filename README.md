@@ -78,9 +78,31 @@ Abre o navegador na consulta da SEFAZ; você resolve o captcha (SP exige) e o
 programa lê os itens direto do HTML. O modelo só é usado para as categorias
 (e como plano B, lendo o texto da página, se o layout for diferente).
 
+## API
+
+```bash
+pip install -e ".[lmstudio,sefaz,api,dev]"
+compras api                 # http://localhost:8000/docs (documentação interativa)
+```
+
+| Método | Rota | O que faz |
+|---|---|---|
+| POST | `/notas/sefaz` | Recebe `{html, link}` da consulta na SEFAZ e salva a nota |
+| POST | `/notas/foto` | Recebe a foto do cupom (alternativa) |
+| GET | `/compras`, `/compras/{id}` | Lista / detalha compras |
+| DELETE | `/compras/{id}` | Apaga uma compra |
+| GET | `/relatorios/gastos-mensais` | Total por mês |
+| GET | `/relatorios/categorias?ano=&mes=` | Gasto por categoria (com %) |
+| GET | `/relatorios/produtos` | Produtos com que mais se gasta |
+| GET | `/saude` | API e banco no ar? |
+
+Uma nota só é salva se a soma dos itens fechar com o total; senão a resposta traz as
+divergências e é preciso reenviar com `forcar=true` depois de conferir.
+`salvar=false` devolve só a prévia.
+
 ## Próximos passos
 
-- [ ] API (FastAPI) para receber foto pelo celular
+- [x] API (FastAPI)
 - [x] Importação pela SEFAZ no computador (navegador, usuário resolve o captcha)
 - [ ] App: câmera lê o QR -> WebView da SEFAZ (captcha) -> envia o HTML para a API
 - [ ] Normalizar produtos (mesmo item com descrições diferentes)
