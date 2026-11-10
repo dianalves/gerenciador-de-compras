@@ -14,11 +14,13 @@ from compras.banco.modelos import Compra, Estabelecimento, ItemCompra, Produto
 
 @dataclass
 class Preco:
+    """Uma compra do produto (várias linhas iguais no mesmo cupom viram uma só)."""
     data: Optional[datetime]
     mercado: str
-    valor_unitario: Decimal
+    valor_unitario: Decimal  # por un ou por kg: é o que dá para comparar entre compras
     unidade: str
     quantidade: Decimal
+    valor_total: Decimal
 
 
 @dataclass
@@ -41,16 +43,22 @@ class Comparacao:
 
 
 def historico(sessao: Session, produto_id: int) -> list[Preco]:
-    """Cada compra do produto, da mais antiga para a mais recente."""
+    """Cada compra do produto, da mais antiga para a mais recente, com quantidade e total."""
     linhas = sessao.execute(
-        select(Compra.data_emissao, Estabelecimento.nome, ItemCompra.valor_unitario,
-               ItemCompra.unidade, ItemCompra.quantidade)
+        select(Compra.id, Compra.data_emissao, Estabelecimento.nome, ItemCompra.unidade,
+               func.sum(ItemCompra.quantidade), func.sum(ItemCompra.valor_total))
         .join(Compra, ItemCompra.compra_id == Compra.id)
         .join(Estabelecimento, Compra.estabelecimento_id == Estabelecimento.id)
         .where(ItemCompra.produto_id == produto_id)
+        .group_by(Compra.id, Compra.data_emissao, Estabelecimento.nome, ItemCompra.unidade)
         .order_by(Compra.data_emissao)
     ).all()
-    return [Preco(*linha) for linha in linhas]
+    precos = []
+    for _id, data, mercado, unidade, quantidade, total in linhas:
+        quantidade, total = Decimal(str(quantidade)), Decimal(str(total))
+        unitario = (total / quantidade).quantize(Decimal("0.01")) if quantidade else total
+        precos.append(Preco(data, mercado, unitario, unidade, quantidade, total))
+    return precos
 
 
 def comparar_mercados(sessao: Session) -> list[Comparacao]:

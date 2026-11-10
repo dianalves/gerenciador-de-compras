@@ -92,6 +92,7 @@ class PrecoSaida(BaseModel):
     valor_unitario: Decimal
     unidade: str
     quantidade: Decimal
+    valor_total: Decimal
 
 
 class ComparacaoSaida(BaseModel):

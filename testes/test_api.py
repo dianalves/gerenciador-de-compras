@@ -156,3 +156,17 @@ def test_produtos_e_comparacao_entre_mercados(cliente):
     comparacao = cliente.get("/produtos/comparar-mercados").json()
     coca_cmp = [c for c in comparacao if c["produto_id"] == coca[0]["id"]][0]
     assert coca_cmp["mais_barato"] == "MERCADO 11" and coca_cmp["diferenca"] == "1.40"
+
+
+def test_historico_agrupa_linhas_repetidas_da_mesma_compra(cliente):
+    """Duas latas passadas separadas no caixa = uma compra de 2 un no histórico."""
+    linha = HTML[HTML.index("<tr>"):HTML.index("</tr>") + 5]  # a linha do cream cheese
+    html = HTML.replace(linha, linha + linha).replace("109,55", "128,54")  # +18,99
+    r = cliente.post("/notas/sefaz?usar_modelo=false", json={"html": html, "link": LINK})
+    assert r.json()["salva"], r.json()["mensagem"]
+
+    produto = cliente.get("/produtos?busca=CREAM").json()[0]
+    precos = cliente.get(f"/produtos/{produto['id']}/precos").json()
+    assert len(precos) == 1
+    assert precos[0]["quantidade"] in ("2", "2.000", "2.0")
+    assert precos[0]["valor_total"] == "37.98" and precos[0]["valor_unitario"] == "18.99"

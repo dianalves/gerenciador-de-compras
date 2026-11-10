@@ -381,11 +381,13 @@ def produtos_precos(busca: str = typer.Argument(..., help="ID do produto ou part
                 console.print(f"  #{p.id}  {p.nome}")
             raise typer.Exit()
         produto = achados[0]
-        tabela = Table("Data", "Mercado", "Preço", "Qtd", title=f"#{produto.id} {produto.nome}")
+        tabela = Table("Data", "Mercado", "Qtd", "Preço unit.", "Total",
+                       title=f"#{produto.id} {produto.nome}")
         for preco in historico(sessao, produto.id):
             data = f"{preco.data:%d/%m/%Y}" if preco.data else "-"
-            tabela.add_row(data, preco.mercado, f"{reais(preco.valor_unitario)}/{preco.unidade.lower()}",
-                           quantidade(preco.quantidade, preco.unidade))
+            tabela.add_row(data, preco.mercado, quantidade(preco.quantidade, preco.unidade),
+                           f"{reais(preco.valor_unitario)}/{preco.unidade.lower()}",
+                           reais(preco.valor_total))
     console.print(tabela)
 
 

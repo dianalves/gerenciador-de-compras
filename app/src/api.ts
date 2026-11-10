@@ -47,6 +47,35 @@ export type CompraResumo = {
 export type GastoMensal = { ano: number; mes: number; total: string };
 export type GastoCategoria = { categoria: string; total: string; percentual: number };
 
+export type Produto = {
+  id: number;
+  nome: string;
+  categoria: string;
+  descricoes: string[];
+  compras: number;
+};
+
+export type PrecoPago = {
+  data: string | null;
+  mercado: string;
+  valor_unitario: string;
+  unidade: string;
+  quantidade: string;
+  valor_total: string;
+};
+
+export type Comparacao = {
+  produto_id: number;
+  produto: string;
+  unidade: string;
+  mais_barato: string;
+  preco_mais_barato: string;
+  mais_caro: string;
+  preco_mais_caro: string;
+  diferenca: string;
+  percentual: number;
+};
+
 export class ErroApi extends Error {
   constructor(public status: number, mensagem: string) {
     super(mensagem);
@@ -101,6 +130,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ html, link }),
     }),
+  produtos: (busca?: string) =>
+    chamar<Produto[]>(`/produtos${busca ? `?busca=${encodeURIComponent(busca)}` : ''}`),
+  precos: (produtoId: number) => chamar<PrecoPago[]>(`/produtos/${produtoId}/precos`),
+  compararMercados: () => chamar<Comparacao[]>('/produtos/comparar-mercados'),
   gastosMensais: () => chamar<GastoMensal[]>('/relatorios/gastos-mensais'),
   categorias: (ano: number, mes: number) =>
     chamar<GastoCategoria[]>(`/relatorios/categorias?ano=${ano}&mes=${mes}`),

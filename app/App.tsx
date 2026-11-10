@@ -1,62 +1,95 @@
-// Fluxo do app: Início -> Câmera (QR) -> Verificação (já existe?) -> SEFAZ (captcha) -> Resultado.
+// Abas: Início, Preços, Estoque, Perguntar.
+// Fluxo de importação (tela cheia): Câmera -> Verificação -> SEFAZ -> Resultado.
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { BackHandler } from 'react-native';
+import { BackHandler, View } from 'react-native';
 
+import BarraAbas, { Aba } from './src/componentes/BarraAbas';
+import { cores } from './src/estilo';
+import EmBreve from './src/telas/EmBreve';
 import Inicio from './src/telas/Inicio';
+import Precos from './src/telas/Precos';
 import Resultado from './src/telas/Resultado';
 import Scanner from './src/telas/Scanner';
 import Sefaz from './src/telas/Sefaz';
 import Verificacao from './src/telas/Verificacao';
 
-type Tela =
-  | { nome: 'inicio' }
+type Fluxo =
   | { nome: 'scanner' }
   | { nome: 'verificacao'; link: string }
   | { nome: 'sefaz'; link: string }
   | { nome: 'resultado'; link: string; html: string };
 
 export default function App() {
-  const [tela, setTela] = useState<Tela>({ nome: 'inicio' });
+  const [aba, setAba] = useState<Aba>('inicio');
+  const [fluxo, setFluxo] = useState<Fluxo | null>(null);
+  const [versao, setVersao] = useState(0); // muda após importar: recarrega as abas
 
-  // Botão "voltar" do Android volta para o início em vez de fechar o app.
+  // "Voltar" do Android: sai do fluxo de importação ou volta para o Início.
   useEffect(() => {
     const assinatura = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (tela.nome === 'inicio') return false;
-      setTela({ nome: 'inicio' });
-      return true;
+      if (fluxo) {
+        setFluxo(null);
+        return true;
+      }
+      if (aba !== 'inicio') {
+        setAba('inicio');
+        return true;
+      }
+      return false;
     });
     return () => assinatura.remove();
-  }, [tela.nome]);
+  }, [fluxo, aba]);
 
-  const inicio = () => setTela({ nome: 'inicio' });
-  const escanear = () => setTela({ nome: 'scanner' });
+  const sairDoFluxo = () => {
+    setFluxo(null);
+    setVersao((v) => v + 1);
+  };
+  const escanear = () => setFluxo({ nome: 'scanner' });
+
+  if (fluxo) {
+    return (
+      <>
+        <StatusBar style={fluxo.nome === 'scanner' ? 'light' : 'dark'} />
+        {fluxo.nome === 'scanner' && (
+          <Scanner aoVoltar={sairDoFluxo} aoLer={(link) => setFluxo({ nome: 'verificacao', link })} />
+        )}
+        {fluxo.nome === 'verificacao' && (
+          <Verificacao
+            link={fluxo.link}
+            aoNotaNova={() => setFluxo({ nome: 'sefaz', link: fluxo.link })}
+            aoEscanearOutro={escanear}
+            aoInicio={sairDoFluxo}
+          />
+        )}
+        {fluxo.nome === 'sefaz' && (
+          <Sefaz
+            link={fluxo.link}
+            aoVoltar={sairDoFluxo}
+            aoCapturar={(html) => setFluxo({ nome: 'resultado', link: fluxo.link, html })}
+          />
+        )}
+        {fluxo.nome === 'resultado' && (
+          <Resultado link={fluxo.link} html={fluxo.html} aoEscanearOutro={escanear} aoInicio={sairDoFluxo} />
+        )}
+      </>
+    );
+  }
 
   return (
-    <>
-      <StatusBar style={tela.nome === 'scanner' ? 'light' : 'dark'} />
-      {tela.nome === 'inicio' && <Inicio aoEscanear={escanear} />}
-      {tela.nome === 'scanner' && (
-        <Scanner aoVoltar={inicio} aoLer={(link) => setTela({ nome: 'verificacao', link })} />
-      )}
-      {tela.nome === 'verificacao' && (
-        <Verificacao
-          link={tela.link}
-          aoNotaNova={() => setTela({ nome: 'sefaz', link: tela.link })}
-          aoEscanearOutro={escanear}
-          aoInicio={inicio}
-        />
-      )}
-      {tela.nome === 'sefaz' && (
-        <Sefaz
-          link={tela.link}
-          aoVoltar={inicio}
-          aoCapturar={(html) => setTela({ nome: 'resultado', link: tela.link, html })}
-        />
-      )}
-      {tela.nome === 'resultado' && (
-        <Resultado link={tela.link} html={tela.html} aoEscanearOutro={escanear} aoInicio={inicio} />
-      )}
-    </>
+    <View style={{ flex: 1, backgroundColor: cores.fundo }}>
+      <StatusBar style="dark" />
+      <View style={{ flex: 1 }} key={versao}>
+        {aba === 'inicio' && <Inicio aoEscanear={escanear} />}
+        {aba === 'precos' && <Precos />}
+        {aba === 'estoque' && (
+          <EmBreve titulo="Estoque" descricao="O que tem em casa e quanto" />
+        )}
+        {aba === 'perguntar' && (
+          <EmBreve titulo="Perguntar" descricao="Pergunte sobre as suas compras" />
+        )}
+      </View>
+      <BarraAbas atual={aba} aoTrocar={setAba} />
+    </View>
   );
 }
