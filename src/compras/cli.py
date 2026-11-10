@@ -7,7 +7,7 @@ from rich.console import Console
 from rich.table import Table
 
 from compras.config import obter_configuracao
-from compras.banco.conexao import Sessao, criar_tabelas
+from compras.banco.conexao import Sessao
 from compras.nota.leitor import ler_nota
 from compras.servicos import consultas
 from compras.servicos.importar import NotaJaImportada, salvar_nota
@@ -53,9 +53,18 @@ def quantidade(valor, unidade: str) -> str:
 
 @app.command("iniciar-banco")
 def iniciar_banco():
-    """Cria as tabelas no PostgreSQL."""
-    criar_tabelas()
-    console.print("[green]Tabelas criadas.[/green]")
+    """Cria ou atualiza as tabelas do banco (aplica as migrações pendentes)."""
+    from compras.banco.migracoes import atualizar_banco
+
+    console.print(f"[green]{atualizar_banco()}[/green]")
+
+
+@app.command("nova-migracao")
+def nova_migracao(mensagem: str = typer.Argument(..., help='Ex.: "adiciona produtos"')):
+    """(Desenvolvimento) Gera uma migração a partir das mudanças em banco/modelos.py."""
+    from compras.banco.migracoes import nova_migracao as gerar
+
+    gerar(mensagem)
 
 
 @app.command()
@@ -290,6 +299,79 @@ def api(
     console.print(f"[green]API em http://localhost:{porta}/docs[/green]  "
                   f"(no celular, mesma rede Wi-Fi: http://{ip}:{porta})")
     uvicorn.run("compras.api.app:app", host=host, port=porta, reload=recarregar)
+
+
+produtos_app = typer.Typer(help="Produtos normalizados (o mesmo produto em cupons diferentes)")
+app.add_typer(produtos_app, name="produtos")
+
+
+@produtos_app.command("vincular")
+def produtos_vincular():
+    """Liga ao produto todos os itens que ainda não têm um (rode uma vez após a migração)."""
+    from compras.produtos.servico import vincular_pendentes
+
+    with Sessao() as sessao:
+        quantos = vincular_pendentes(sessao)
+        from sqlalchemy import func, select
+
+        from compras.banco.modelos import Produto
+        total = sessao.scalar(select(func.count()).select_from(Produto))
+    console.print(f"[green]{quantos} item(ns) ligado(s). {total} produto(s) distintos.[/green]")
+
+
+@produtos_app.command("listar")
+def produtos_listar(busca: str = typer.Argument(None, help="Parte do nome, ex.: COCA")):
+    """Lista os produtos com quantas descrições de cupom e compras cada um tem."""
+    from compras.produtos.servico import buscar
+
+    tabela = Table("ID", "Produto", "Categoria", "Descrições no cupom", "Itens")
+    with Sessao() as sessao:
+        for p in buscar(sessao, busca):
+            tabela.add_row(str(p.id), p.nome, p.categoria,
+                           "\n".join(a.descricao for a in p.apelidos), str(len(p.itens)))
+    console.print(tabela)
+
+
+@produtos_app.command("sugerir")
+def produtos_sugerir(
+    minimo: float = typer.Option(0.85, help="Semelhança mínima (0 a 1)"),
+    aplicar: bool = typer.Option(False, "--perguntar", help="Pergunta e junta um por um"),
+):
+    """Mostra produtos que parecem ser o mesmo. Com --perguntar, você confirma cada junção."""
+    from compras.produtos.servico import juntar, sugerir_juncoes
+
+    with Sessao() as sessao:
+        sugestoes = sugerir_juncoes(sessao, minimo)
+        if not sugestoes:
+            console.print("[green]Nenhuma sugestão de junção.[/green]")
+            return
+        juntados: set[int] = set()
+        for s in sugestoes:
+            if s.origem.id in juntados or s.destino.id in juntados:
+                continue  # um dos dois já foi juntado nesta rodada
+            console.print(f"[cyan]{s.semelhanca:.0%}[/cyan]  #{s.origem.id} {s.origem.nome}"
+                          f"  ->  #{s.destino.id} {s.destino.nome}")
+            if aplicar and typer.confirm("   Juntar esses dois?", default=False):
+                juntar(sessao, s.origem.id, s.destino.id)
+                juntados.add(s.origem.id)
+                console.print("   [green]juntados[/green]")
+        if not aplicar:
+            console.print("\nPara confirmar uma a uma: [bold]compras produtos sugerir --perguntar[/bold]"
+                          "\nOu direto: [bold]compras produtos juntar ORIGEM DESTINO[/bold]")
+
+
+@produtos_app.command("juntar")
+def produtos_juntar(origem: int, destino: int):
+    """Junta o produto ORIGEM no DESTINO (itens e descrições passam para o destino)."""
+    from compras.produtos.servico import juntar
+
+    with Sessao() as sessao:
+        try:
+            produto = juntar(sessao, origem, destino)
+        except ValueError as erro:
+            console.print(f"[red]{erro}[/red]")
+            raise typer.Exit(1)
+        console.print(f"[green]Juntado em #{produto.id} {produto.nome}.[/green]")
 
 
 if __name__ == "__main__":

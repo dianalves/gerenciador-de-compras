@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from compras.banco.modelos import Compra, Estabelecimento, ItemCompra
 from compras.nota.esquema import NotaFiscal
+from compras.produtos.servico import produto_para
 
 
 class NotaJaImportada(Exception):
@@ -28,6 +29,9 @@ def salvar_nota(sessao: Session, nota: NotaFiscal, *, origem: str = "foto",
         estab = Estabelecimento(nome=nota.estabelecimento_nome, cnpj=nota.estabelecimento_cnpj)
         sessao.add(estab)
 
+    # Produtos resolvidos antes de montar a compra (cada um pode precisar ser criado).
+    produtos = [produto_para(sessao, item.descricao, item.categoria) for item in nota.itens]
+
     compra = Compra(
         estabelecimento=estab,
         chave_acesso=nota.chave_acesso,
@@ -39,7 +43,8 @@ def salvar_nota(sessao: Session, nota: NotaFiscal, *, origem: str = "foto",
         origem=origem,
         provedor_visao=provedor,
         imagem=imagem,
-        itens=[ItemCompra(**item.model_dump(exclude={"numero_item"})) for item in nota.itens],
+        itens=[ItemCompra(**item.model_dump(exclude={"numero_item"}), produto=produto)
+               for item, produto in zip(nota.itens, produtos)],
     )
     sessao.add(compra)
     sessao.commit()

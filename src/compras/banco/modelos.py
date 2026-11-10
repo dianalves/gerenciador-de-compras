@@ -1,4 +1,4 @@
-"""Tabelas do banco: estabelecimentos, compras e itens."""
+"""Tabelas do banco: estabelecimentos, compras, itens e produtos."""
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
@@ -55,5 +55,35 @@ class ItemCompra(Base):
     valor_unitario: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     valor_total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     categoria: Mapped[str] = mapped_column(String(30), default="outros")
+    produto_id: Mapped[Optional[int]] = mapped_column(ForeignKey("produtos.id"), index=True)
 
     compra: Mapped[Compra] = relationship(back_populates="itens")
+    produto: Mapped[Optional["Produto"]] = relationship(back_populates="itens")
+
+
+class Produto(Base):
+    """O produto "de verdade", independente de como cada mercado escreve no cupom."""
+    __tablename__ = "produtos"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String(200))  # ex.: REFRIGERANTE COCA COLA 2 L
+    chave: Mapped[str] = mapped_column(String(200), unique=True)  # forma normalizada
+    categoria: Mapped[str] = mapped_column(String(30), default="mercearia")
+    tamanho: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 3))  # em g, ml ou un
+    unidade_tamanho: Mapped[Optional[str]] = mapped_column(String(5))
+    criado_em: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    apelidos: Mapped[list["ApelidoProduto"]] = relationship(
+        back_populates="produto", cascade="all, delete-orphan")
+    itens: Mapped[list[ItemCompra]] = relationship(back_populates="produto")
+
+
+class ApelidoProduto(Base):
+    """Cada forma como o produto já apareceu num cupom (ex.: REFR.COCA COLA 2L)."""
+    __tablename__ = "apelidos_produto"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    descricao: Mapped[str] = mapped_column(String(300), unique=True)
+    produto_id: Mapped[int] = mapped_column(ForeignKey("produtos.id"), index=True)
+
+    produto: Mapped[Produto] = relationship(back_populates="apelidos")
