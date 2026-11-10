@@ -76,3 +76,31 @@ class GastoProduto(BaseModel):
     unidade: str
     quantidade: Decimal
     total: Decimal
+
+
+class ProdutoSaida(BaseModel):
+    id: int
+    nome: str
+    categoria: str
+    descricoes: List[str]
+    compras: int
+
+
+class PrecoSaida(BaseModel):
+    data: Optional[datetime] = None
+    mercado: str
+    valor_unitario: Decimal
+    unidade: str
+    quantidade: Decimal
+
+
+class ComparacaoSaida(BaseModel):
+    produto_id: int
+    produto: str
+    unidade: str
+    mais_barato: str
+    preco_mais_barato: Decimal
+    mais_caro: str
+    preco_mais_caro: Decimal
+    diferenca: Decimal
+    percentual: float

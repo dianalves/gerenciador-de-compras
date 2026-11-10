@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from compras.api import rotas_compras, rotas_notas, rotas_relatorios
+from compras.api import rotas_compras, rotas_notas, rotas_produtos, rotas_relatorios
 from compras.api.dependencias import obter_sessao
 
 app = FastAPI(
@@ -21,6 +21,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"],
 app.include_router(rotas_notas.roteador)
 app.include_router(rotas_compras.roteador)
 app.include_router(rotas_relatorios.roteador)
+app.include_router(rotas_produtos.roteador)
 
 
 @app.get("/saude", tags=["sistema"], summary="Verifica se a API e o banco estão no ar")

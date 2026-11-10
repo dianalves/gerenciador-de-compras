@@ -129,3 +129,30 @@ def test_procura_por_chave(cliente):
     cliente.post("/notas/sefaz?usar_modelo=false", json={"html": HTML, "link": LINK})
     r = cliente.get(f"/compras/chave/{chave}")
     assert r.status_code == 200 and r.json()["estabelecimento"] == "SUPERMERCADO TESTE LTDA"
+
+
+def test_produtos_e_comparacao_entre_mercados(cliente):
+    # mesma nota de teste em dois "mercados" (CNPJs diferentes), Coca escrita diferente
+    def nota(cnpj, descricao, preco, chave_final):
+        return (HTML.replace("12.345.678/0001-99", cnpj)
+                    .replace("SUPERMERCADO TESTE LTDA", f"MERCADO {cnpj[:2]}")
+                    .replace("CREAM CHEESE POLENGHI 30", descricao)
+                    .replace("18,99", preco)  # preço unitário e total do item
+                    .replace("109,55", f"{float(preco.replace(',', '.')) + 90.56:.2f}".replace(".", ",")),
+                LINK.replace("123456|", chave_final + "|"))
+
+    html_a, link_a = nota("11.111.111/0001-11", "REFR.COCA COLA 2L", "10,99", "111111")
+    html_b, link_b = nota("22.222.222/0001-22", "REFRI.COCA COLA 2LT", "12,39", "222222")
+    assert cliente.post("/notas/sefaz?usar_modelo=false", json={"html": html_a, "link": link_a}).json()["salva"]
+    assert cliente.post("/notas/sefaz?usar_modelo=false", json={"html": html_b, "link": link_b}).json()["salva"]
+
+    coca = cliente.get("/produtos?busca=COCA").json()
+    assert len(coca) == 1 and coca[0]["nome"] == "REFRIGERANTE COCA COLA 2 L"
+    assert sorted(coca[0]["descricoes"]) == ["REFR.COCA COLA 2L", "REFRI.COCA COLA 2LT"]
+
+    precos = cliente.get(f"/produtos/{coca[0]['id']}/precos").json()
+    assert sorted(p["valor_unitario"] for p in precos) == ["10.99", "12.39"]
+
+    comparacao = cliente.get("/produtos/comparar-mercados").json()
+    coca_cmp = [c for c in comparacao if c["produto_id"] == coca[0]["id"]][0]
+    assert coca_cmp["mais_barato"] == "MERCADO 11" and coca_cmp["diferenca"] == "1.40"

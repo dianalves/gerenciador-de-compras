@@ -360,6 +360,55 @@ def produtos_sugerir(
                           "\nOu direto: [bold]compras produtos juntar ORIGEM DESTINO[/bold]")
 
 
+@produtos_app.command("precos")
+def produtos_precos(busca: str = typer.Argument(..., help="ID do produto ou parte do nome")):
+    """Histórico de preço de um produto (data, mercado, preço)."""
+    from compras.produtos.precos import historico
+    from compras.produtos.servico import buscar
+
+    with Sessao() as sessao:
+        if busca.isdigit():
+            from compras.banco.modelos import Produto
+            achados = [p for p in [sessao.get(Produto, int(busca))] if p]
+        else:
+            achados = buscar(sessao, busca)
+        if not achados:
+            console.print(f"[yellow]Nenhum produto com '{busca}'.[/yellow]")
+            raise typer.Exit(1)
+        if len(achados) > 1:
+            console.print(f"[yellow]{len(achados)} produtos com '{busca}'. Escolha pelo ID:[/yellow]")
+            for p in achados:
+                console.print(f"  #{p.id}  {p.nome}")
+            raise typer.Exit()
+        produto = achados[0]
+        tabela = Table("Data", "Mercado", "Preço", "Qtd", title=f"#{produto.id} {produto.nome}")
+        for preco in historico(sessao, produto.id):
+            data = f"{preco.data:%d/%m/%Y}" if preco.data else "-"
+            tabela.add_row(data, preco.mercado, f"{reais(preco.valor_unitario)}/{preco.unidade.lower()}",
+                           quantidade(preco.quantidade, preco.unidade))
+    console.print(tabela)
+
+
+@produtos_app.command("comparar")
+def produtos_comparar():
+    """Produtos comprados em mais de um mercado: onde saiu mais barato."""
+    from compras.produtos.precos import comparar_mercados
+
+    with Sessao() as sessao:
+        comparacoes = comparar_mercados(sessao)
+    if not comparacoes:
+        console.print("[yellow]Nenhum produto foi comprado em mais de um mercado ainda.[/yellow]")
+        return
+    tabela = Table("Produto", "Mais barato", "Mais caro", "Diferença")
+    for c in comparacoes:
+        un = c.unidade.lower()
+        tabela.add_row(c.produto,
+                       f"[green]{c.mais_barato}[/green]\n{reais(c.preco_mais_barato)}/{un}",
+                       f"[red]{c.mais_caro}[/red]\n{reais(c.preco_mais_caro)}/{un}",
+                       f"{reais(c.diferenca)} ({c.percentual:.0f}%)")
+    console.print(tabela)
+
+
 @produtos_app.command("juntar")
 def produtos_juntar(origem: int, destino: int):
     """Junta o produto ORIGEM no DESTINO (itens e descrições passam para o destino)."""
