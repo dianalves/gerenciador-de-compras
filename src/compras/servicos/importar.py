@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from compras.banco.modelos import Compra, Estabelecimento, ItemCompra
 from compras.nota.esquema import NotaFiscal
+from compras.estoque.servico import registrar_compra
 from compras.produtos.servico import produto_para
 
 
@@ -47,5 +48,7 @@ def salvar_nota(sessao: Session, nota: NotaFiscal, *, origem: str = "foto",
                for item, produto in zip(nota.itens, produtos)],
     )
     sessao.add(compra)
+    sessao.flush()  # gera o id da compra
+    registrar_compra(sessao, compra)
     sessao.commit()
     return compra

@@ -51,5 +51,10 @@ def apagar(compra_id: int, sessao: Session = Depends(obter_sessao)):
     compra = sessao.get(Compra, compra_id)
     if compra is None:
         raise HTTPException(404, "Compra não encontrada")
+    from sqlalchemy import delete
+
+    from compras.banco.modelos import MovimentoEstoque
+
+    sessao.execute(delete(MovimentoEstoque).where(MovimentoEstoque.compra_id == compra_id))
     sessao.delete(compra)
     sessao.commit()

@@ -76,6 +76,15 @@ export type Comparacao = {
   percentual: number;
 };
 
+export type ItemEstoque = {
+  produto_id: number;
+  nome: string;
+  categoria: string;
+  unidade: string;
+  quantidade: string;
+  ultima_entrada: string | null;
+};
+
 export class ErroApi extends Error {
   constructor(public status: number, mensagem: string) {
     super(mensagem);
@@ -134,6 +143,14 @@ export const api = {
     chamar<Produto[]>(`/produtos${busca ? `?busca=${encodeURIComponent(busca)}` : ''}`),
   precos: (produtoId: number) => chamar<PrecoPago[]>(`/produtos/${produtoId}/precos`),
   compararMercados: () => chamar<Comparacao[]>('/produtos/comparar-mercados'),
+  estoque: () => chamar<ItemEstoque[]>('/estoque'),
+  consumir: (produtoId: number, quantidade = 1) =>
+    chamar<ItemEstoque>(`/estoque/${produtoId}/consumir`, {
+      method: 'POST',
+      body: JSON.stringify({ quantidade }),
+    }),
+  acabou: (produtoId: number) =>
+    chamar<ItemEstoque>(`/estoque/${produtoId}/acabou`, { method: 'POST' }),
   gastosMensais: () => chamar<GastoMensal[]>('/relatorios/gastos-mensais'),
   categorias: (ano: number, mes: number) =>
     chamar<GastoCategoria[]>(`/relatorios/categorias?ano=${ano}&mes=${mes}`),

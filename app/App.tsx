@@ -7,6 +7,7 @@ import { BackHandler, View } from 'react-native';
 import BarraAbas, { Aba } from './src/componentes/BarraAbas';
 import { cores } from './src/estilo';
 import EmBreve from './src/telas/EmBreve';
+import Estoque from './src/telas/Estoque';
 import Inicio from './src/telas/Inicio';
 import Precos from './src/telas/Precos';
 import Resultado from './src/telas/Resultado';
@@ -82,9 +83,7 @@ export default function App() {
       <View style={{ flex: 1 }} key={versao}>
         {aba === 'inicio' && <Inicio aoEscanear={escanear} />}
         {aba === 'precos' && <Precos />}
-        {aba === 'estoque' && (
-          <EmBreve titulo="Estoque" descricao="O que tem em casa e quanto" />
-        )}
+        {aba === 'estoque' && <Estoque />}
         {aba === 'perguntar' && (
           <EmBreve titulo="Perguntar" descricao="Pergunte sobre as suas compras" />
         )}

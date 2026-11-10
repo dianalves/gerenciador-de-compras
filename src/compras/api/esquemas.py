@@ -105,3 +105,16 @@ class ComparacaoSaida(BaseModel):
     preco_mais_caro: Decimal
     diferenca: Decimal
     percentual: float
+
+
+class ItemEstoqueSaida(BaseModel):
+    produto_id: int
+    nome: str
+    categoria: str
+    unidade: str
+    quantidade: Decimal
+    ultima_entrada: Optional[datetime] = None
+
+
+class EntradaQuantidade(BaseModel):
+    quantidade: Decimal = Field(..., description="Quantidade (un ou kg)")

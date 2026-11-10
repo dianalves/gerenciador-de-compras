@@ -1,4 +1,4 @@
-"""Tabelas do banco: estabelecimentos, compras, itens e produtos."""
+"""Tabelas do banco: estabelecimentos, compras, itens, produtos e estoque."""
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
@@ -87,3 +87,18 @@ class ApelidoProduto(Base):
     produto_id: Mapped[int] = mapped_column(ForeignKey("produtos.id"), index=True)
 
     produto: Mapped[Produto] = relationship(back_populates="apelidos")
+
+
+class MovimentoEstoque(Base):
+    """Entrada (compra) ou saída (consumo, acabou) de um produto. Saldo = soma das quantidades."""
+    __tablename__ = "movimentos_estoque"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    produto_id: Mapped[int] = mapped_column(ForeignKey("produtos.id"), index=True)
+    quantidade: Mapped[Decimal] = mapped_column(Numeric(12, 3))  # positiva entra, negativa sai
+    unidade: Mapped[str] = mapped_column(String(10), default="UN")
+    tipo: Mapped[str] = mapped_column(String(20))  # compra | consumo | acabou | ajuste
+    compra_id: Mapped[Optional[int]] = mapped_column(ForeignKey("compras.id", ondelete="CASCADE"))
+    criado_em: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    produto: Mapped[Produto] = relationship()

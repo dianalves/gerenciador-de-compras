@@ -425,5 +425,71 @@ def produtos_juntar(origem: int, destino: int):
         console.print(f"[green]Juntado em #{produto.id} {produto.nome}.[/green]")
 
 
+estoque_app = typer.Typer(help="Estoque da casa", invoke_without_command=True)
+app.add_typer(estoque_app, name="estoque")
+
+
+@estoque_app.callback()
+def estoque_listar(ctx: typer.Context):
+    """Sem subcomando: mostra o que tem em casa."""
+    if ctx.invoked_subcommand:
+        return
+    from compras.estoque.servico import saldo
+
+    with Sessao() as sessao:
+        itens = saldo(sessao)
+    if not itens:
+        console.print("[yellow]Estoque vazio. Rode `compras estoque iniciar` ou importe uma nota."
+                      "[/yellow]")
+        return
+    tabela = Table("ID", "Produto", "Categoria", "Tem")
+    for i in itens:
+        tabela.add_row(str(i.produto_id), i.nome, i.categoria, quantidade(i.quantidade, i.unidade))
+    console.print(tabela)
+
+
+@estoque_app.command("iniciar")
+def estoque_iniciar():
+    """Cria o estoque inicial com os itens da compra mais recente (só se estiver vazio)."""
+    from compras.estoque.servico import iniciar
+
+    with Sessao() as sessao:
+        quantos = iniciar(sessao)
+    if quantos:
+        console.print(f"[green]Estoque iniciado com {quantos} itens da compra mais recente.[/green]")
+    else:
+        console.print("[yellow]O estoque já tem movimentos (ou não há compras); nada feito.[/yellow]")
+
+
+@estoque_app.command("usar")
+def estoque_usar(produto_id: int, qtd: float = typer.Argument(1.0, help="Quanto usou")):
+    """Registra que usou uma parte de um produto."""
+    from decimal import Decimal
+
+    from compras.estoque.servico import consumir
+
+    with Sessao() as sessao:
+        try:
+            item = consumir(sessao, produto_id, Decimal(str(qtd)))
+        except ValueError as erro:
+            console.print(f"[red]{erro}[/red]")
+            raise typer.Exit(1)
+    console.print(f"{item.nome}: agora tem {quantidade(item.quantidade, item.unidade)}")
+
+
+@estoque_app.command("acabou")
+def estoque_acabou(produto_id: int):
+    """Registra que o produto acabou."""
+    from compras.estoque.servico import acabou
+
+    with Sessao() as sessao:
+        try:
+            item = acabou(sessao, produto_id)
+        except ValueError as erro:
+            console.print(f"[red]{erro}[/red]")
+            raise typer.Exit(1)
+    console.print(f"{item.nome}: acabou.")
+
+
 if __name__ == "__main__":
     app()

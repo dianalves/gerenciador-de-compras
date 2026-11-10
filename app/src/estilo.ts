@@ -43,4 +43,13 @@ export const estilos = StyleSheet.create({
   botaoSecundarioTexto: { color: cores.texto, fontSize: 16, fontWeight: '600' },
   linha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   textoErro: { color: cores.erro, fontSize: 15 },
+  botaoMini: {
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: cores.fundo,
+  },
+  botaoMiniTexto: { color: cores.texto, fontWeight: '700' },
 });
