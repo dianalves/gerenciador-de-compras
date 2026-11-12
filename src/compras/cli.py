@@ -206,6 +206,8 @@ def recategorizar(
                 tabela.add_row(registro.descricao, registro.categoria, categoria, origem)
                 registro.categoria = categoria
                 mudaram += 1
+            if registro.produto is not None:  # o estoque usa a categoria do produto
+                registro.produto.categoria = categoria
         sessao.commit()
     if mostrar and mudaram:
         console.print(tabela)
@@ -423,6 +425,23 @@ def produtos_juntar(origem: int, destino: int):
             console.print(f"[red]{erro}[/red]")
             raise typer.Exit(1)
         console.print(f"[green]Juntado em #{produto.id} {produto.nome}.[/green]")
+
+
+@app.command()
+def perguntar(
+    pergunta: str = typer.Argument(..., help='Ex.: "quanto gastei com carne em outubro?"'),
+    provedor: str = typer.Option(None, help="lmstudio | openai"),
+    detalhes: bool = typer.Option(False, "--detalhes", help="Mostra as ferramentas usadas"),
+):
+    """Pergunta sobre as compras em linguagem natural (agente LangGraph)."""
+    from compras.ia.agente import criar_agente, modelo_padrao, responder
+
+    with console.status("Pensando..."):
+        resposta = responder(criar_agente(modelo_padrao(provedor), Sessao), pergunta)
+    if detalhes:
+        for f in resposta.ferramentas:
+            console.print(f"[dim]  ferramenta: {f['nome']}({f['argumentos']})[/dim]")
+    console.print(resposta.texto)
 
 
 estoque_app = typer.Typer(help="Estoque da casa", invoke_without_command=True)

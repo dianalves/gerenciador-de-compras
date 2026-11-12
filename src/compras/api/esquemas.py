@@ -118,3 +118,24 @@ class ItemEstoqueSaida(BaseModel):
 
 class EntradaQuantidade(BaseModel):
     quantidade: Decimal = Field(..., description="Quantidade (un ou kg)")
+
+
+class MensagemConversa(BaseModel):
+    papel: str = Field(..., description="usuario | assistente")
+    texto: str
+
+
+class EntradaPergunta(BaseModel):
+    pergunta: str = Field(..., min_length=2, max_length=500)
+    historico: List[MensagemConversa] = Field(default_factory=list,
+                                              description="Conversa anterior (opcional)")
+
+
+class FerramentaUsada(BaseModel):
+    nome: str
+    argumentos: dict
+
+
+class RespostaPergunta(BaseModel):
+    resposta: str
+    ferramentas: List[FerramentaUsada]

@@ -84,7 +84,20 @@ def juntar(sessao: Session, origem_id: int, destino_id: int) -> Produto:
 
 
 def buscar(sessao: Session, texto: Optional[str] = None) -> list[Produto]:
-    consulta = select(Produto).order_by(Produto.categoria, Produto.nome)
-    if texto:
-        consulta = consulta.where(Produto.nome.ilike(f"%{texto.upper()}%"))
-    return list(sessao.scalars(consulta).all())
+    """Busca por palavras, sem acento e ignorando pontuação: "coca-cola", "Coca Cola" e
+    "coca" acham o mesmo produto. Procura no nome e nas descrições originais dos cupons."""
+    import re
+
+    from compras.produtos.normalizar import ABREVIACOES, sem_acento
+
+    produtos = list(sessao.scalars(select(Produto).order_by(Produto.categoria, Produto.nome)).all())
+    if not texto:
+        return produtos
+    palavras = [ABREVIACOES.get(p, p) for p in re.split(r"[^A-Z0-9]+", sem_acento(texto)) if p]
+    if not palavras:
+        return produtos
+
+    def onde_procurar(p: Produto) -> str:
+        return " ".join([p.nome, *(a.descricao for a in p.apelidos)])
+
+    return [p for p in produtos if all(palavra in sem_acento(onde_procurar(p)) for palavra in palavras)]

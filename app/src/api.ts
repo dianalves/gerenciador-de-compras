@@ -85,6 +85,12 @@ export type ItemEstoque = {
   ultima_entrada: string | null;
 };
 
+export type MensagemConversa = { papel: 'usuario' | 'assistente'; texto: string };
+export type RespostaPergunta = {
+  resposta: string;
+  ferramentas: { nome: string; argumentos: Record<string, unknown> }[];
+};
+
 export class ErroApi extends Error {
   constructor(public status: number, mensagem: string) {
     super(mensagem);
@@ -151,6 +157,11 @@ export const api = {
     }),
   acabou: (produtoId: number) =>
     chamar<ItemEstoque>(`/estoque/${produtoId}/acabou`, { method: 'POST' }),
+  perguntar: (pergunta: string, historico: MensagemConversa[]) =>
+    chamar<RespostaPergunta>('/perguntas', {
+      method: 'POST',
+      body: JSON.stringify({ pergunta, historico }),
+    }),
   gastosMensais: () => chamar<GastoMensal[]>('/relatorios/gastos-mensais'),
   categorias: (ano: number, mes: number) =>
     chamar<GastoCategoria[]>(`/relatorios/categorias?ano=${ano}&mes=${mes}`),

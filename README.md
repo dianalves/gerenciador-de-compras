@@ -117,6 +117,35 @@ Observações aprendidas na prática:
   suspeito. A WebView fica no padrão, sem disfarçar user-agent ou cabeçalhos, e não se deve
   insistir quando aparecer "The requested URL was rejected".
 
+## Produtos, preços e estoque
+
+```bash
+compras iniciar-banco                 # aplica as migrações (Alembic)
+compras produtos vincular             # liga itens antigos aos produtos normalizados
+compras produtos sugerir --perguntar  # confirma junções sugeridas (nomes cortados etc.)
+compras produtos precos COCA          # histórico de preço
+compras produtos comparar             # onde cada produto saiu mais barato
+compras estoque                       # o que tem em casa
+compras estoque usar ID 2 | compras estoque acabou ID
+```
+
+O mesmo produto escrito de jeitos diferentes ("REFR.COCA COLA 2L" / "REFRI.COCA COLA 2LT")
+vira um produto só por **regras** (`produtos/normalizar.py`); nomes só parecidos viram
+sugestões que o usuário confirma. O estoque é um livro de movimentos (compra +, consumo −).
+
+## Perguntas com IA (LangGraph)
+
+```bash
+pip install -e ".[ia]"
+compras perguntar "quanto gastei com carne em outubro?" --detalhes
+```
+
+Agente montado como grafo LangGraph (`ia/agente.py`): nó **pensar** (modelo) ⇄ nó
+**ferramentas**. O modelo não acessa o banco: só chama 9 ferramentas somente leitura
+(`ia/ferramentas.py`), então todo número vem do banco. Proteções: recusa assuntos fora de
+compras, erros de parâmetro voltam ao modelo para corrigir, e uma resposta com valor em R$
+sem nenhuma ferramenta consultada é bloqueada. Roda no LM Studio (local) ou na OpenAI.
+
 ## Próximos passos
 
 - [x] API (FastAPI)
@@ -124,7 +153,7 @@ Observações aprendidas na prática:
 - [x] App Android: câmera lê o QR -> WebView da SEFAZ (captcha) -> envia o HTML para a API
 - [ ] App no iPhone
 - [ ] API num servidor (usar o app fora de casa)
-- [ ] Normalizar produtos (mesmo item com descrições diferentes)
-- [ ] Estoque da casa (o que tem e quantidades)
-- [ ] Perguntas e respostas sobre as compras (LangGraph / agentes)
-- [ ] Migrações com Alembic
+- [x] Normalizar produtos (mesmo item com descrições diferentes)
+- [x] Estoque da casa (o que tem e quantidades)
+- [x] Perguntas e respostas sobre as compras (LangGraph / agentes)
+- [x] Migrações com Alembic

@@ -90,3 +90,41 @@ def comparar_mercados(sessao: Session) -> list[Comparacao]:
         comparacoes.append(Comparacao(produto_id, nome, unidade, barato[0], barato[1],
                                       caro[0], caro[1]))
     return sorted(comparacoes, key=lambda c: -c.diferenca)
+
+
+@dataclass
+class Variacao:
+    produto_id: int
+    produto: str
+    unidade: str
+    data_antes: Optional[datetime]
+    preco_antes: Decimal
+    data_depois: Optional[datetime]
+    preco_depois: Decimal
+
+    @property
+    def percentual(self) -> float:
+        return float(100 * (self.preco_depois - self.preco_antes) / self.preco_antes)
+
+
+def variacao_de_precos(sessao: Session) -> list[Variacao]:
+    """Primeira x última compra de cada produto (mesma unidade), da maior alta à maior queda."""
+    repetidos = sessao.execute(
+        select(ItemCompra.produto_id)
+        .where(ItemCompra.produto_id.is_not(None))
+        .group_by(ItemCompra.produto_id)
+        .having(func.count(func.distinct(ItemCompra.compra_id)) > 1)
+    ).scalars().all()
+
+    variacoes = []
+    for produto_id in repetidos:
+        precos = historico(sessao, produto_id)
+        unidade = precos[-1].unidade
+        mesmos = [p for p in precos if p.unidade == unidade]
+        antes, depois = mesmos[0], mesmos[-1]
+        if len(mesmos) < 2 or antes.valor_unitario == depois.valor_unitario or not antes.valor_unitario:
+            continue
+        nome = sessao.get(Produto, produto_id).nome
+        variacoes.append(Variacao(produto_id, nome, unidade, antes.data, antes.valor_unitario,
+                                  depois.data, depois.valor_unitario))
+    return sorted(variacoes, key=lambda v: -abs(v.percentual))
