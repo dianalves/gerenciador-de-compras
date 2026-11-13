@@ -5,7 +5,9 @@ import { useEffect, useState } from 'react';
 import { BackHandler, View } from 'react-native';
 
 import BarraAbas, { Aba } from './src/componentes/BarraAbas';
+import { ParteEstoque } from './src/componentes/SeletorEstoque';
 import { cores } from './src/estilo';
+import Essenciais from './src/telas/Essenciais';
 import Estoque from './src/telas/Estoque';
 import Inicio from './src/telas/Inicio';
 import Perguntar from './src/telas/Perguntar';
@@ -25,6 +27,7 @@ export default function App() {
   const [aba, setAba] = useState<Aba>('inicio');
   const [fluxo, setFluxo] = useState<Fluxo | null>(null);
   const [versao, setVersao] = useState(0); // muda após importar: recarrega as abas
+  const [parteEstoque, setParteEstoque] = useState<ParteEstoque>('em_casa');
 
   // "Voltar" do Android: sai do fluxo de importação ou volta para o Início.
   useEffect(() => {
@@ -81,9 +84,20 @@ export default function App() {
     <View style={{ flex: 1, backgroundColor: cores.fundo }}>
       <StatusBar style="dark" />
       <View style={{ flex: 1 }} key={versao}>
-        {aba === 'inicio' && <Inicio aoEscanear={escanear} />}
+        {aba === 'inicio' && (
+          <Inicio
+            aoEscanear={escanear}
+            aoVerEssenciais={() => {
+              setParteEstoque('essenciais');
+              setAba('estoque');
+            }}
+          />
+        )}
         {aba === 'precos' && <Precos />}
-        {aba === 'estoque' && <Estoque />}
+        {aba === 'estoque' && parteEstoque === 'em_casa' && <Estoque aoTrocarParte={setParteEstoque} />}
+        {aba === 'estoque' && parteEstoque === 'essenciais' && (
+          <Essenciais aoTrocarParte={setParteEstoque} />
+        )}
         {aba === 'perguntar' && <Perguntar />}
       </View>
       <BarraAbas atual={aba} aoTrocar={setAba} />

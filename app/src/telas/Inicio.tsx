@@ -2,24 +2,26 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 
-import { api, GastoCategoria, GastoMensal } from '../api';
+import { api, GastoCategoria, GastoMensal, PrevisaoEssencial } from '../api';
 import { API_URL } from '../config';
 import { cores, estilos } from '../estilo';
-import { nomeCategoria, nomeMes, reais } from '../formato';
+import { nomeCategoria, nomeMes, quandoAcaba, reais } from '../formato';
 
-type Props = { aoEscanear: () => void };
+type Props = { aoEscanear: () => void; aoVerEssenciais: () => void };
 
-export default function Inicio({ aoEscanear }: Props) {
+export default function Inicio({ aoEscanear, aoVerEssenciais }: Props) {
   const [meses, setMeses] = useState<GastoMensal[]>([]);
   const [selecionado, setSelecionado] = useState<GastoMensal | null>(null);
   const [categorias, setCategorias] = useState<GastoCategoria[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [previsoes, setPrevisoes] = useState<PrevisaoEssencial[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);
     try {
+      api.previsaoEssenciais().then(setPrevisoes).catch(() => setPrevisoes(null));
       const lista = await api.gastosMensais();
       setMeses(lista);
       setSelecionado((atual) => atual ?? lista[lista.length - 1] ?? null); // mês mais recente
@@ -53,6 +55,8 @@ export default function Inicio({ aoEscanear }: Props) {
       <Pressable style={estilos.botao} onPress={aoEscanear}>
         <Text style={estilos.botaoTexto}>Escanear cupom</Text>
       </Pressable>
+
+      {previsoes !== null && <CartaoAcabando previsoes={previsoes} aoAbrir={aoVerEssenciais} />}
 
       {erro && (
         <View style={estilos.cartao}>
@@ -126,5 +130,41 @@ export default function Inicio({ aoEscanear }: Props) {
       )}
       <View style={{ height: 40 }} />
     </ScrollView>
+  );
+}
+
+function CartaoAcabando({ previsoes, aoAbrir }: { previsoes: PrevisaoEssencial[]; aoAbrir: () => void }) {
+  if (previsoes.length === 0) {
+    return (
+      <Pressable style={estilos.cartao} onPress={aoAbrir}>
+        <Text style={{ color: cores.texto, fontWeight: '600' }}>Avisos de reposição</Text>
+        <Text style={{ color: cores.suave, marginTop: 4 }}>
+          Marque os itens que não podem faltar e o app avisa quando estiverem acabando ›
+        </Text>
+      </Pressable>
+    );
+  }
+  const urgentes = previsoes
+    .filter((p) => p.situacao === 'acabou' || p.situacao === 'acabando')
+    .sort((a, b) => (a.dias_restantes ?? 0) - (b.dias_restantes ?? 0));
+  if (urgentes.length === 0) return null; // tudo em dia: não ocupa espaço
+  return (
+    <Pressable
+      style={[estilos.cartao, { borderColor: cores.alerta, backgroundColor: '#FFF8EC' }]}
+      onPress={aoAbrir}
+    >
+      <Text style={{ color: cores.alerta, fontWeight: '700', fontSize: 16, marginBottom: 6 }}>
+        Está acabando
+      </Text>
+      {urgentes.map((p) => (
+        <View key={p.essencial_id} style={[estilos.linha, { paddingVertical: 3 }]}>
+          <Text style={{ color: cores.texto }}>{p.nome}</Text>
+          <Text style={{ color: p.situacao === 'acabou' ? cores.erro : cores.alerta, fontWeight: '700' }}>
+            {quandoAcaba(p.dias_restantes, p.acaba_em)}
+          </Text>
+        </View>
+      ))}
+      <Text style={{ color: cores.suave, fontSize: 12, marginTop: 6 }}>Toque para ver os essenciais ›</Text>
+    </Pressable>
   );
 }

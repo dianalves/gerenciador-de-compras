@@ -1,9 +1,9 @@
-"""Tabelas do banco: estabelecimentos, compras, itens, produtos e estoque."""
+"""Tabelas do banco: estabelecimentos, compras, itens, produtos, estoque, casa e essenciais."""
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import ForeignKey, Numeric, String, func
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, Numeric, String, Table, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -97,8 +97,49 @@ class MovimentoEstoque(Base):
     produto_id: Mapped[int] = mapped_column(ForeignKey("produtos.id"), index=True)
     quantidade: Mapped[Decimal] = mapped_column(Numeric(12, 3))  # positiva entra, negativa sai
     unidade: Mapped[str] = mapped_column(String(10), default="UN")
-    tipo: Mapped[str] = mapped_column(String(20))  # compra | consumo | acabou | ajuste
+    tipo: Mapped[str] = mapped_column(String(20))  # compra | manual | consumo | acabou | ajuste
     compra_id: Mapped[Optional[int]] = mapped_column(ForeignKey("compras.id", ondelete="CASCADE"))
     criado_em: Mapped[datetime] = mapped_column(server_default=func.now())
 
     produto: Mapped[Produto] = relationship()
+
+
+class Casa(Base):
+    """Quem mora na casa (só o essencial para estimar consumo). Uma linha só."""
+    __tablename__ = "casa"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    adultos: Mapped[int] = mapped_column(Integer, default=1)
+    criancas: Mapped[int] = mapped_column(Integer, default=0)
+    pets: Mapped[int] = mapped_column(Integer, default=0)
+    padroes_criados: Mapped[bool] = mapped_column(Boolean, default=False)  # sugestões já criadas
+    atualizado_em: Mapped[datetime] = mapped_column(server_default=func.now(),
+                                                    onupdate=func.now())
+
+
+essencial_produtos = Table(
+    "essencial_produtos", Base.metadata,
+    Column("essencial_id", ForeignKey("essenciais.id", ondelete="CASCADE"), primary_key=True),
+    Column("produto_id", ForeignKey("produtos.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class Essencial(Base):
+    """Tipo de produto que não pode faltar (ex.: Arroz), agrupando marcas e tamanhos.
+
+    Conta para ele: os produtos que o usuário escolheu (essencial_produtos) e qualquer
+    produto cujo nome tenha as palavras de `palavras` (grupos separados por vírgula; dentro
+    de um grupo, todas as palavras precisam aparecer).
+    """
+    __tablename__ = "essenciais"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    nome: Mapped[str] = mapped_column(String(60), unique=True)
+    palavras: Mapped[str] = mapped_column(String(200))  # "ARROZ" -> casa no nome do produto
+    excluir: Mapped[str] = mapped_column(String(200), default="")  # "CREME,CONDENSADO"
+    unidade: Mapped[str] = mapped_column(String(5))  # kg | L | un
+    consumo_pessoa_mes: Mapped[Decimal] = mapped_column(Numeric(10, 3))  # na unidade acima
+    ativo: Mapped[bool] = mapped_column(Boolean, default=False)  # o usuário escolhe
+    quantidade_pacote: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))  # "1 pacote"
+
+    produtos: Mapped[list[Produto]] = relationship(secondary=essencial_produtos)

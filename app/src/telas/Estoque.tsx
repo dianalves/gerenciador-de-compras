@@ -3,15 +3,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { api, ItemEstoque } from '../api';
+import SeletorEstoque, { ParteEstoque } from '../componentes/SeletorEstoque';
+import FormItemManual from './FormItemManual';
 import { cores, estilos } from '../estilo';
 import { nomeCategoria, quantidade } from '../formato';
 
-export default function Estoque() {
+export default function Estoque({ aoTrocarParte }: { aoTrocarParte: (parte: ParteEstoque) => void }) {
   const [itens, setItens] = useState<ItemEstoque[]>([]);
   const [filtro, setFiltro] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<number | null>(null); // produto sendo atualizado
+  const [adicionando, setAdicionando] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -45,6 +48,17 @@ export default function Estoque() {
     }
   }
 
+  if (adicionando) {
+    return (
+      <FormItemManual
+        aoTerminar={() => {
+          setAdicionando(false);
+          carregar();
+        }}
+      />
+    );
+  }
+
   const texto = filtro.trim().toUpperCase();
   const visiveis = texto ? itens.filter((i) => i.nome.includes(texto)) : itens;
   const porCategoria = new Map<string, ItemEstoque[]>();
@@ -56,10 +70,15 @@ export default function Estoque() {
       keyboardShouldPersistTaps="handled"
       refreshControl={<RefreshControl refreshing={carregando} onRefresh={carregar} />}
     >
+      <SeletorEstoque atual="em_casa" aoTrocar={aoTrocarParte} />
       <Text style={estilos.titulo}>Estoque</Text>
       <Text style={estilos.subtitulo}>
         {itens.length} {itens.length === 1 ? 'produto' : 'produtos'} em casa
       </Text>
+
+      <Pressable style={estilos.botao} onPress={() => setAdicionando(true)}>
+        <Text style={estilos.botaoTexto}>+ Adicionar item que já tenho</Text>
+      </Pressable>
 
       <TextInput
         value={filtro}
@@ -84,7 +103,8 @@ export default function Estoque() {
       {!carregando && itens.length === 0 && !erro && (
         <View style={estilos.cartao}>
           <Text style={{ color: cores.suave }}>
-            Estoque vazio. Os itens entram aqui quando você importa um cupom.
+            Estoque vazio. Os itens entram aqui quando você importa um cupom, ou adicione o que já
+            tem em casa.
           </Text>
         </View>
       )}

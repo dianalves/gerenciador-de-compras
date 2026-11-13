@@ -444,6 +444,116 @@ def perguntar(
     console.print(resposta.texto)
 
 
+@app.command()
+def casa(
+    adultos: int = typer.Option(None, help="Quantos adultos moram na casa"),
+    criancas: int = typer.Option(None, help="Quantas crianças"),
+    pets: int = typer.Option(None, help="Quantos pets"),
+):
+    """Mostra ou atualiza quem mora na casa (usado para estimar o consumo)."""
+    from compras.reposicao import servico
+
+    with Sessao() as sessao:
+        c = servico.casa(sessao)
+        if adultos is not None or criancas is not None or pets is not None:
+            c = servico.configurar_casa(sessao, adultos if adultos is not None else c.adultos,
+                                        criancas if criancas is not None else c.criancas,
+                                        pets if pets is not None else c.pets)
+        console.print(f"Casa: {c.adultos} adulto(s), {c.criancas} criança(s), {c.pets} pet(s).")
+
+
+essenciais_app = typer.Typer(help="Itens que nunca podem faltar", invoke_without_command=True)
+app.add_typer(essenciais_app, name="essenciais")
+
+
+@essenciais_app.callback()
+def essenciais_previsao(ctx: typer.Context):
+    """Sem subcomando: mostra quanto cada essencial ativo ainda dura."""
+    if ctx.invoked_subcommand:
+        return
+    from decimal import Decimal
+
+    from compras.reposicao.servico import prever
+
+    with Sessao() as sessao:
+        previsoes = prever(sessao)
+    if not previsoes:
+        console.print("[yellow]Nenhum essencial. Adicione pelo app (Estoque > Essenciais)."
+                      "[/yellow]")
+        return
+    cores_situacao = {"acabou": "red", "acabando": "yellow", "ok": "green", "sem_tamanho": "dim"}
+    tabela = Table("Essencial", "Registrado", "Estimado hoje", "Dura", "Acaba em", "Situação")
+    for p in previsoes:
+        dura = f"{p.dias_restantes:.0f} dia(s)" if p.dias_restantes is not None else "?"
+        acaba = f"{p.acaba_em:%d/%m}" if p.acaba_em else "?"
+        cor = cores_situacao.get(p.situacao, "white")
+        desde = f" (em {p.desde:%d/%m})" if p.desde else ""
+        tabela.add_row(p.nome, f"{p.registrado.normalize():f} {p.unidade}{desde}",
+                       f"~{p.estoque.quantize(Decimal('0.1')).normalize():f} {p.unidade}",
+                       dura, acaba, f"[{cor}]{p.situacao}[/{cor}]")
+    console.print(tabela)
+    for p in previsoes:
+        if p.sem_tamanho:
+            console.print(f"[dim]{p.nome}: não sei o tamanho de {', '.join(p.sem_tamanho)}[/dim]")
+
+
+@essenciais_app.command("listar")
+def essenciais_listar():
+    """Todos os essenciais, ativos ou não, com o consumo por pessoa/mês usado no cálculo."""
+    from sqlalchemy import select
+
+    from compras.banco.modelos import Essencial
+    from compras.reposicao.servico import garantir_padroes
+
+    with Sessao() as sessao:
+        garantir_padroes(sessao)
+        tabela = Table("ID", "Essencial", "Ativo", "Consumo por pessoa/mês")
+        for e in sessao.scalars(select(Essencial).order_by(Essencial.nome)):
+            tabela.add_row(str(e.id), e.nome, "sim" if e.ativo else "-",
+                           f"{e.consumo_pessoa_mes.normalize():f} {e.unidade}")
+    console.print(tabela)
+
+
+def _mudar_essenciais(nomes: list[str], ativo: bool) -> None:
+    from compras.reposicao.servico import atualizar_essencial, essencial_por_nome
+
+    with Sessao() as sessao:
+        for nome in nomes:
+            e = essencial_por_nome(sessao, nome)
+            if e is None:
+                console.print(f"[red]Não conheço o essencial '{nome}'.[/red]")
+                continue
+            atualizar_essencial(sessao, e.id, ativo=ativo)
+            console.print(f"{e.nome}: {'ativado' if ativo else 'desativado'}")
+
+
+@essenciais_app.command("ativar")
+def essenciais_ativar(nomes: list[str] = typer.Argument(..., help="Ex.: Arroz Feijão Café")):
+    """Marca itens como essenciais (o sistema passa a avisar quando estiverem acabando)."""
+    _mudar_essenciais(nomes, True)
+
+
+@essenciais_app.command("desativar")
+def essenciais_desativar(nomes: list[str]):
+    _mudar_essenciais(nomes, False)
+
+
+@essenciais_app.command("consumo")
+def essenciais_consumo(nome: str, por_pessoa_mes: float):
+    """Ajusta quanto uma pessoa consome por mês (ex.: compras essenciais consumo Arroz 2)."""
+    from decimal import Decimal
+
+    from compras.reposicao.servico import atualizar_essencial, essencial_por_nome
+
+    with Sessao() as sessao:
+        e = essencial_por_nome(sessao, nome)
+        if e is None:
+            console.print(f"[red]Não conheço o essencial '{nome}'.[/red]")
+            raise typer.Exit(1)
+        atualizar_essencial(sessao, e.id, consumo_pessoa_mes=Decimal(str(por_pessoa_mes)))
+        console.print(f"{e.nome}: {por_pessoa_mes} {e.unidade} por pessoa/mês")
+
+
 estoque_app = typer.Typer(help="Estoque da casa", invoke_without_command=True)
 app.add_typer(estoque_app, name="estoque")
 

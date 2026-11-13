@@ -68,3 +68,34 @@ def test_iniciar_usa_so_a_compra_mais_recente(sessao):
     assert servico.iniciar(sessao) == 1
     assert [i.nome for i in servico.saldo(sessao)] == ["ARROZ CAMIL 5 kg"]  # uva de abril não
     assert servico.iniciar(sessao) == 0  # não roda de novo
+
+
+def test_item_que_ja_tinha_em_casa_entra_sem_preco(sessao):
+    from sqlalchemy import func, select
+
+    from compras.banco.modelos import Compra, ItemCompra
+
+    item = servico.adicionar_manual(sessao, "Arroz", Decimal("2"), "KG")
+    assert item.nome == "ARROZ" and item.quantidade == Decimal("2") and item.unidade == "KG"
+    # não vira compra: gastos e preços continuam vazios
+    assert sessao.scalar(select(func.count()).select_from(Compra)) == 0
+    assert sessao.scalar(select(func.count()).select_from(ItemCompra)) == 0
+
+    # consumo e "acabou" funcionam igual
+    assert servico.consumir(sessao, item.produto_id, Decimal("0.5")).quantidade == Decimal("1.5")
+
+
+def test_manual_escolhendo_produto_ja_comprado_soma_no_mesmo(sessao):
+    salvar_nota(sessao, _nota("1" * 44, "2026-11-01T10:00", ("REFR.COCA COLA 2L", 1, "UN", 10.99)))
+    coca = servico.saldo(sessao)[0].produto_id
+    item = servico.adicionar_manual(sessao, "", Decimal("2"), "UN", produto_id=coca)
+    assert item.produto_id == coca and item.quantidade == Decimal("3")
+
+
+def test_manual_valida_entrada(sessao):
+    with pytest.raises(ValueError):
+        servico.adicionar_manual(sessao, "Arroz", Decimal("0"), "KG")
+    with pytest.raises(ValueError):
+        servico.adicionar_manual(sessao, "Arroz", Decimal("1"), "CAIXA")
+    with pytest.raises(ValueError):
+        servico.adicionar_manual(sessao, "  ", Decimal("1"), "UN")

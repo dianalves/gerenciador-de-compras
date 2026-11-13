@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from compras.api.dependencias import obter_sessao
-from compras.api.esquemas import EntradaQuantidade, ItemEstoqueSaida
+from compras.api.esquemas import EntradaManual, EntradaQuantidade, ItemEstoqueSaida
 from compras.estoque import servico
 from compras.estoque.servico import ProdutoForaDoEstoque
 
@@ -24,6 +24,13 @@ def _executar(acao):
 @roteador.get("", response_model=List[ItemEstoqueSaida], summary="O que tem em casa agora")
 def listar(sessao: Session = Depends(obter_sessao)):
     return [ItemEstoqueSaida(**vars(i)) for i in servico.saldo(sessao)]
+
+
+@roteador.post("/manual", response_model=ItemEstoqueSaida, status_code=201,
+               summary="Item que já tinha em casa (sem nota, sem preço)")
+def adicionar_manual(entrada: EntradaManual, sessao: Session = Depends(obter_sessao)):
+    return _executar(lambda: servico.adicionar_manual(
+        sessao, entrada.nome, entrada.quantidade, entrada.unidade, entrada.produto_id))
 
 
 @roteador.post("/{produto_id}/consumir", response_model=ItemEstoqueSaida,

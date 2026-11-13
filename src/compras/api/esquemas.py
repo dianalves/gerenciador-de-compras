@@ -1,5 +1,5 @@
 """Formatos de entrada e saída da API (aparecem documentados em /docs)."""
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 
@@ -139,3 +139,81 @@ class FerramentaUsada(BaseModel):
 class RespostaPergunta(BaseModel):
     resposta: str
     ferramentas: List[FerramentaUsada]
+
+
+class CasaSaida(BaseModel):
+    adultos: int
+    criancas: int
+    pets: int
+
+
+class CasaEntrada(BaseModel):
+    adultos: int = Field(..., ge=1, le=20)
+    criancas: int = Field(0, ge=0, le=20)
+    pets: int = Field(0, ge=0, le=20)
+
+
+class ProdutoResumo(BaseModel):
+    id: int
+    nome: str
+
+
+class EssencialSaida(BaseModel):
+    id: int
+    nome: str
+    unidade: str
+    consumo_pessoa_mes: Decimal
+    ativo: bool
+    quantidade_pacote: Optional[Decimal] = None
+    dura_pacote_dias: Optional[float] = None  # "1 pacote dura ~N dias nesta casa"
+    produtos: List[ProdutoResumo] = []
+
+
+class EssencialNovo(BaseModel):
+    nome: str = Field(..., min_length=1, max_length=60)
+    produto_ids: List[int] = Field(default_factory=list,
+                                   description="Produtos já comprados que contam para ele")
+    duracao_dias: int = Field(..., ge=1, le=365, description="Quanto essa quantidade dura")
+    quantidade: Optional[Decimal] = Field(None, gt=0, description="Quanto costuma comprar")
+    unidade: Optional[str] = Field(None, description="UN, KG ou L")
+
+
+class EssencialEntrada(BaseModel):
+    nome: Optional[str] = Field(None, min_length=1, max_length=60)
+    ativo: Optional[bool] = None
+    duracao_dias: Optional[int] = Field(None, ge=1, le=365)
+    produto_ids: Optional[List[int]] = None
+    consumo_pessoa_mes: Optional[Decimal] = Field(None, gt=0)
+    quantidade: Optional[Decimal] = Field(None, gt=0)
+    unidade: Optional[str] = None
+
+
+class PrevisaoSaida(BaseModel):
+    essencial_id: int
+    nome: str
+    unidade: str
+    estoque: Decimal
+    consumo_diario: Decimal
+    dias_restantes: Optional[float] = None
+    acaba_em: Optional[date] = None
+    situacao: str
+    produtos: List[str]
+    sem_tamanho: List[str]
+    fonte: str
+    registrado: Decimal
+    desde: Optional[date] = None
+
+
+class PreviaEssencialSaida(BaseModel):
+    nome: str
+    encontrados: int
+    unidade: str
+    quantidade_pacote: Decimal
+    em_estoque: Decimal
+
+
+class EntradaManual(BaseModel):
+    nome: str = Field("", max_length=120, description="Nome do item (se não escolher produto)")
+    produto_id: Optional[int] = Field(None, description="Produto já comprado (opcional)")
+    quantidade: Decimal = Field(..., gt=0)
+    unidade: str = Field("UN", description="UN, KG ou L")

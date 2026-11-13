@@ -106,3 +106,36 @@ def ajustar(sessao: Session, produto_id: int, nova_quantidade: Decimal) -> ItemE
         raise ValueError("A quantidade não pode ser negativa")
     atual = saldo_do_produto(sessao, produto_id)
     return _movimentar(sessao, produto_id, nova_quantidade - atual.quantidade, "ajuste")
+
+
+UNIDADES_MANUAIS = {"UN", "KG", "L"}
+
+
+def adicionar_manual(sessao: Session, nome: str, quantidade: Decimal, unidade: str = "UN",
+                     produto_id: Optional[int] = None) -> ItemEstoque:
+    """Item que já estava em casa (sem nota): entra no estoque sem preço e sem compra.
+
+    Vira um movimento "manual": conta no estoque e nos essenciais, mas não aparece em
+    gastos nem preços (que vêm só das notas).
+    """
+    from compras.nota.categorizar import categoria_por_palavras
+    from compras.produtos.servico import produto_para
+
+    unidade = (unidade or "UN").upper()
+    if unidade not in UNIDADES_MANUAIS:
+        raise ValueError("Unidade deve ser un, kg ou L")
+    if quantidade <= ZERO:
+        raise ValueError("A quantidade tem que ser maior que zero")
+    if produto_id is not None:
+        produto = sessao.get(Produto, produto_id)
+        if produto is None:
+            raise ProdutoForaDoEstoque("Produto não encontrado")
+    else:
+        nome = (nome or "").strip()
+        if not nome:
+            raise ValueError("Digite o nome do item")
+        produto = produto_para(sessao, nome, categoria_por_palavras(nome))
+    sessao.add(MovimentoEstoque(produto_id=produto.id, quantidade=quantidade, unidade=unidade,
+                                tipo="manual"))
+    sessao.commit()
+    return next(i for i in saldo(sessao) if i.produto_id == produto.id and i.unidade == unidade)

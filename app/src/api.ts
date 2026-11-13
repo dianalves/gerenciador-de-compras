@@ -91,6 +91,52 @@ export type RespostaPergunta = {
   ferramentas: { nome: string; argumentos: Record<string, unknown> }[];
 };
 
+export type Casa = { adultos: number; criancas: number; pets: number };
+
+export type Essencial = {
+  id: number;
+  nome: string;
+  unidade: string;
+  consumo_pessoa_mes: string;
+  ativo: boolean;
+  quantidade_pacote: string | null;
+  dura_pacote_dias: number | null;
+  produtos: { id: number; nome: string }[];
+};
+
+export type PreviaEssencial = {
+  nome: string;
+  encontrados: number;
+  unidade: string;
+  quantidade_pacote: string;
+  em_estoque: string;
+};
+
+export type MudancaEssencial = {
+  nome?: string;
+  ativo?: boolean;
+  duracao_dias?: number;
+  produto_ids?: number[];
+  quantidade?: number;
+  unidade?: 'UN' | 'KG' | 'L';
+};
+
+export type PrevisaoEssencial = {
+  essencial_id: number;
+  nome: string;
+  unidade: string;
+  estoque: string; // estimado hoje
+  registrado: string;
+  desde: string | null;
+  consumo_diario: string;
+  dias_restantes: number | null;
+  acaba_em: string | null;
+  situacao: 'acabou' | 'acabando' | 'ok' | 'sem_tamanho';
+  produtos: string[];
+  sem_tamanho: string[];
+  fonte: string;
+};
+
 export class ErroApi extends Error {
   constructor(public status: number, mensagem: string) {
     super(mensagem);
@@ -155,6 +201,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ quantidade }),
     }),
+  adicionarManual: (item: { nome: string; produto_id?: number; quantidade: number; unidade: 'UN' | 'KG' | 'L' }) =>
+    chamar<ItemEstoque>('/estoque/manual', { method: 'POST', body: JSON.stringify(item) }),
   acabou: (produtoId: number) =>
     chamar<ItemEstoque>(`/estoque/${produtoId}/acabou`, { method: 'POST' }),
   perguntar: (pergunta: string, historico: MensagemConversa[]) =>
@@ -162,6 +210,23 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ pergunta, historico }),
     }),
+  casa: () => chamar<Casa>('/casa'),
+  salvarCasa: (casa: Casa) => chamar<Casa>('/casa', { method: 'PUT', body: JSON.stringify(casa) }),
+  essenciais: () => chamar<Essencial[]>('/essenciais'),
+  editarEssencial: (id: number, mudanca: MudancaEssencial) =>
+    chamar<Essencial>(`/essenciais/${id}`, { method: 'PATCH', body: JSON.stringify(mudanca) }),
+  previaEssencial: (nome: string) =>
+    chamar<PreviaEssencial>(`/essenciais/previa?nome=${encodeURIComponent(nome)}`),
+  criarEssencial: (novo: {
+    nome: string;
+    produto_ids: number[];
+    duracao_dias: number;
+    quantidade?: number;
+    unidade?: 'UN' | 'KG' | 'L';
+  }) =>
+    chamar<Essencial>('/essenciais', { method: 'POST', body: JSON.stringify(novo) }),
+  apagarEssencial: (id: number) => chamar<void>(`/essenciais/${id}`, { method: 'DELETE' }),
+  previsaoEssenciais: () => chamar<PrevisaoEssencial[]>('/essenciais/previsao'),
   gastosMensais: () => chamar<GastoMensal[]>('/relatorios/gastos-mensais'),
   categorias: (ano: number, mes: number) =>
     chamar<GastoCategoria[]>(`/relatorios/categorias?ano=${ano}&mes=${mes}`),

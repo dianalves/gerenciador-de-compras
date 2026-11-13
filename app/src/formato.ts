@@ -38,3 +38,19 @@ export function quantidade(valor: string, unidade: string): string {
   if (sigla === 'kg' || sigla === 'l') return `${numero.toFixed(3).replace('.', ',')} ${sigla}`;
   return `${Number.isInteger(numero) ? numero : String(numero).replace('.', ',')} ${sigla}`;
 }
+
+/** 3.3333 -> "3,3" (casas decimais sem zeros sobrando) */
+export function numero(valor: string | number, casas = 1): string {
+  const n = Number(valor);
+  return String(Number(n.toFixed(casas))).replace('.', ',');
+}
+
+/** Texto curto da previsão: "acabou", "acaba hoje", "~3 dias", "~20 dias (02/12)" */
+export function quandoAcaba(dias: number | null, acabaEm: string | null): string {
+  if (dias === null) return 'sem previsão';
+  if (dias <= 0) return 'acabou';
+  const d = Math.round(dias);
+  if (d === 0) return 'acaba hoje';
+  const data = acabaEm ? ` (${acabaEm.slice(8, 10)}/${acabaEm.slice(5, 7)})` : '';
+  return `~${d} ${d === 1 ? 'dia' : 'dias'}${data}`;
+}
