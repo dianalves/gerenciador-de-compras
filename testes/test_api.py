@@ -170,3 +170,11 @@ def test_historico_agrupa_linhas_repetidas_da_mesma_compra(cliente):
     assert len(precos) == 1
     assert precos[0]["quantidade"] in ("2", "2.000", "2.0")
     assert precos[0]["valor_total"] == "37.98" and precos[0]["valor_unitario"] == "18.99"
+
+
+def test_lista_mostra_a_situacao_atual_do_essencial(cliente):
+    r = cliente.post("/essenciais", json={"nome": "Ovos", "duracao_dias": 15,
+                                          "quantidade": 12, "unidade": "UN"})
+    assert r.status_code == 201, r.text
+    ovos = [i for i in cliente.get("/lista").json() if i["texto"] == "Ovos"][0]
+    assert ovos["origem"] == "sugestao" and ovos["situacao"] == "acabou"

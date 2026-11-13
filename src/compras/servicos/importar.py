@@ -50,5 +50,8 @@ def salvar_nota(sessao: Session, nota: NotaFiscal, *, origem: str = "foto",
     sessao.add(compra)
     sessao.flush()  # gera o id da compra
     registrar_compra(sessao, compra)
+
+    from compras.reposicao.lista import marcar_comprados_da_nota
+    marcar_comprados_da_nota(sessao, compra)  # o que estava na lista e veio na nota
     sessao.commit()
     return compra

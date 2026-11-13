@@ -143,3 +143,21 @@ class Essencial(Base):
     quantidade_pacote: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))  # "1 pacote"
 
     produtos: Mapped[list[Produto]] = relationship(secondary=essencial_produtos)
+
+
+class ItemLista(Base):
+    """Item da lista de compras: sugerido (essencial acabando) ou digitado pelo usuário."""
+    __tablename__ = "lista_compras"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    texto: Mapped[str] = mapped_column(String(120))
+    quantidade: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 3))
+    unidade: Mapped[Optional[str]] = mapped_column(String(5))  # un | kg | L
+    essencial_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("essenciais.id", ondelete="SET NULL"))
+    origem: Mapped[str] = mapped_column(String(10), default="manual")  # sugestao | manual
+    status: Mapped[str] = mapped_column(String(10), default="pendente")  # pendente|comprado|removido
+    criado_em: Mapped[datetime] = mapped_column(server_default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+
+    essencial: Mapped[Optional[Essencial]] = relationship()

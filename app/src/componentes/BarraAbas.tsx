@@ -3,10 +3,11 @@ import { Pressable, Text, View } from 'react-native';
 
 import { cores } from '../estilo';
 
-export type Aba = 'inicio' | 'precos' | 'estoque' | 'perguntar';
+export type Aba = 'inicio' | 'lista' | 'precos' | 'estoque' | 'perguntar';
 
 const ABAS: { id: Aba; rotulo: string; icone: string }[] = [
   { id: 'inicio', rotulo: 'Início', icone: '⌂' },
+  { id: 'lista', rotulo: 'Lista', icone: '☰' },
   { id: 'precos', rotulo: 'Preços', icone: '$' },
   { id: 'estoque', rotulo: 'Estoque', icone: '▦' },
   { id: 'perguntar', rotulo: 'Perguntar', icone: '?' },

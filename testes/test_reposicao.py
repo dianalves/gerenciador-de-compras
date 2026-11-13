@@ -238,3 +238,35 @@ def test_quantidade_ou_unidade_invalida(sessao):
         reposicao.criar_essencial(sessao, "Sabão", [], 30, quantidade=Decimal("0"), unidade="UN")
     with pytest.raises(ValueError):
         reposicao.criar_essencial(sessao, "Sabão", [], 30, quantidade=Decimal("1"), unidade="CX")
+
+
+def test_ainda_tenho_corrige_a_previsao_e_tira_da_lista(sessao):
+    """Feijão de 1 kg comprado há 10 dias: a estimativa diz ~2 dias, mas há um pacote fechado."""
+    from compras.reposicao import lista
+
+    salvar_nota(sessao, _nota("1" * 44, ("FEIJAO CAMIL 1KG CARIOCA", 1, "UN", 8.99),
+                              data="2026-11-02T10:00"))
+    assert _por_nome(sessao)["Feijão"].situacao == "acabando"
+    lista.sugerir(sessao, HOJE)
+    assert any(i.texto == "Feijão" for i in lista.listar(sessao))
+
+    feijao = reposicao.essencial_por_nome(sessao, "Feijão")
+    p = reposicao.ainda_tenho(sessao, feijao.id, Decimal("1"), hoje=HOJE)  # "tenho 1 kg"
+    assert p.situacao == "ok" and p.registrado == Decimal("1.000")
+    assert p.dias_restantes == pytest.approx(12.5, abs=0.6)  # 1 kg / (1,2 x 2 / 30)
+    assert not any(i.texto == "Feijão" for i in lista.listar(sessao))
+    assert "Feijão" not in {a.nome for a in reposicao.alertas(sessao, HOJE)}
+
+
+def test_ainda_tenho_converte_kg_para_embalagens(sessao):
+    salvar_nota(sessao, _nota("1" * 44, ("ARROZ CAMIL 5KG", 1, "UN", 29.90)))
+    arroz = reposicao.essencial_por_nome(sessao, "Arroz")
+    reposicao.ainda_tenho(sessao, arroz.id, Decimal("2.5"), hoje=HOJE)  # meio pacote
+    assert estoque.saldo(sessao)[0].quantidade == Decimal("0.5")
+    assert _por_nome(sessao)["Arroz"].registrado == Decimal("2.500")
+
+
+def test_ainda_tenho_sem_nada_no_estoque(sessao):
+    cafe = reposicao.essencial_por_nome(sessao, "Café")
+    p = reposicao.ainda_tenho(sessao, cafe.id, Decimal("0.5"), hoje=HOJE)
+    assert p.registrado == Decimal("0.500") and p.situacao == "ok"

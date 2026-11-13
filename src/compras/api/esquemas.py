@@ -217,3 +217,28 @@ class EntradaManual(BaseModel):
     produto_id: Optional[int] = Field(None, description="Produto já comprado (opcional)")
     quantidade: Decimal = Field(..., gt=0)
     unidade: str = Field("UN", description="UN, KG ou L")
+
+
+class ItemListaSaida(BaseModel):
+    id: int
+    texto: str
+    quantidade: Optional[Decimal] = None
+    unidade: Optional[str] = None
+    origem: str  # sugestao | manual
+    status: str  # pendente | comprado
+    essencial_id: Optional[int] = None
+    situacao: Optional[str] = None  # do essencial AGORA: acabou | acabando | ok | sem_tamanho
+    dias_restantes: Optional[float] = None
+
+
+class ItemListaNovo(BaseModel):
+    texto: str = Field(..., min_length=1, max_length=120)
+    quantidade: Optional[Decimal] = Field(None, gt=0)
+    unidade: Optional[str] = Field(None, description="UN, KG ou L")
+
+
+class ItemListaEdicao(BaseModel):
+    texto: Optional[str] = Field(None, min_length=1, max_length=120)
+    quantidade: Optional[Decimal] = Field(None, gt=0)
+    unidade: Optional[str] = None
+    status: Optional[str] = Field(None, description="pendente | comprado")

@@ -10,6 +10,7 @@ import { cores } from './src/estilo';
 import Essenciais from './src/telas/Essenciais';
 import Estoque from './src/telas/Estoque';
 import Inicio from './src/telas/Inicio';
+import Lista from './src/telas/Lista';
 import Perguntar from './src/telas/Perguntar';
 import Precos from './src/telas/Precos';
 import Resultado from './src/telas/Resultado';
@@ -91,8 +92,10 @@ export default function App() {
               setParteEstoque('essenciais');
               setAba('estoque');
             }}
+            aoVerLista={() => setAba('lista')}
           />
         )}
+        {aba === 'lista' && <Lista />}
         {aba === 'precos' && <Precos />}
         {aba === 'estoque' && parteEstoque === 'em_casa' && <Estoque aoTrocarParte={setParteEstoque} />}
         {aba === 'estoque' && parteEstoque === 'essenciais' && (

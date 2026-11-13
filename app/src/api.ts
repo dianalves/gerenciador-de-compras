@@ -137,6 +137,18 @@ export type PrevisaoEssencial = {
   fonte: string;
 };
 
+export type ItemLista = {
+  id: number;
+  texto: string;
+  quantidade: string | null;
+  unidade: string | null;
+  origem: 'sugestao' | 'manual';
+  status: 'pendente' | 'comprado';
+  essencial_id: number | null;
+  situacao: 'acabou' | 'acabando' | 'ok' | 'sem_tamanho' | null;
+  dias_restantes: number | null;
+};
+
 export class ErroApi extends Error {
   constructor(public status: number, mensagem: string) {
     super(mensagem);
@@ -227,6 +239,20 @@ export const api = {
     chamar<Essencial>('/essenciais', { method: 'POST', body: JSON.stringify(novo) }),
   apagarEssencial: (id: number) => chamar<void>(`/essenciais/${id}`, { method: 'DELETE' }),
   previsaoEssenciais: () => chamar<PrevisaoEssencial[]>('/essenciais/previsao'),
+  lista: () => chamar<ItemLista[]>('/lista'),
+  aindaTenho: (essencialId: number, quantidade: number) =>
+    chamar<PrevisaoEssencial>(`/essenciais/${essencialId}/ainda-tenho`, {
+      method: 'POST',
+      body: JSON.stringify({ quantidade }),
+    }),
+  adicionarNaLista: (item: { texto: string; quantidade?: number; unidade?: 'UN' | 'KG' | 'L' }) =>
+    chamar<ItemLista>('/lista', { method: 'POST', body: JSON.stringify(item) }),
+  editarItemLista: (
+    id: number,
+    mudanca: { texto?: string; quantidade?: number; unidade?: 'UN' | 'KG' | 'L'; status?: 'pendente' | 'comprado' },
+  ) => chamar<ItemLista>(`/lista/${id}`, { method: 'PATCH', body: JSON.stringify(mudanca) }),
+  removerDaLista: (id: number) => chamar<void>(`/lista/${id}`, { method: 'DELETE' }),
+  limparComprados: () => chamar<{ removidos: number }>('/lista/limpar-comprados', { method: 'POST' }),
   gastosMensais: () => chamar<GastoMensal[]>('/relatorios/gastos-mensais'),
   categorias: (ano: number, mes: number) =>
     chamar<GastoCategoria[]>(`/relatorios/categorias?ano=${ano}&mes=${mes}`),

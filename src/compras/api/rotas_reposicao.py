@@ -6,7 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from compras.api.dependencias import obter_sessao
-from compras.api.esquemas import (CasaEntrada, CasaSaida, EssencialEntrada, EssencialNovo,
+from compras.api.esquemas import (CasaEntrada, CasaSaida, EntradaQuantidade, EssencialEntrada,
+                                  EssencialNovo,
                                   EssencialSaida, PreviaEssencialSaida, PrevisaoSaida,
                                   ProdutoResumo)
 from compras.banco.modelos import Essencial
@@ -93,6 +94,14 @@ def editar_essencial(essencial_id: int, entrada: EssencialEntrada,
               summary="Quanto cada essencial ativo ainda dura")
 def previsao(sessao: Session = Depends(obter_sessao)):
     return [PrevisaoSaida(**vars(p)) for p in servico.prever(sessao)]
+
+
+@roteador.post("/essenciais/{essencial_id}/ainda-tenho", response_model=PrevisaoSaida,
+               summary="Corrige a estimativa: 'ainda tenho X' (na unidade do essencial)")
+def ainda_tenho(essencial_id: int, entrada: EntradaQuantidade,
+                sessao: Session = Depends(obter_sessao)):
+    return PrevisaoSaida(**vars(_tratar(
+        lambda: servico.ainda_tenho(sessao, essencial_id, entrada.quantidade))))
 
 
 @roteador.get("/essenciais/alertas", response_model=List[PrevisaoSaida],

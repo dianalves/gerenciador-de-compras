@@ -7,9 +7,9 @@ import { API_URL } from '../config';
 import { cores, estilos } from '../estilo';
 import { nomeCategoria, nomeMes, quandoAcaba, reais } from '../formato';
 
-type Props = { aoEscanear: () => void; aoVerEssenciais: () => void };
+type Props = { aoEscanear: () => void; aoVerEssenciais: () => void; aoVerLista: () => void };
 
-export default function Inicio({ aoEscanear, aoVerEssenciais }: Props) {
+export default function Inicio({ aoEscanear, aoVerEssenciais, aoVerLista }: Props) {
   const [meses, setMeses] = useState<GastoMensal[]>([]);
   const [selecionado, setSelecionado] = useState<GastoMensal | null>(null);
   const [categorias, setCategorias] = useState<GastoCategoria[]>([]);
@@ -56,7 +56,9 @@ export default function Inicio({ aoEscanear, aoVerEssenciais }: Props) {
         <Text style={estilos.botaoTexto}>Escanear cupom</Text>
       </Pressable>
 
-      {previsoes !== null && <CartaoAcabando previsoes={previsoes} aoAbrir={aoVerEssenciais} />}
+      {previsoes !== null && (
+        <CartaoAcabando previsoes={previsoes} aoAbrir={aoVerLista} aoConfigurar={aoVerEssenciais} />
+      )}
 
       {erro && (
         <View style={estilos.cartao}>
@@ -133,10 +135,18 @@ export default function Inicio({ aoEscanear, aoVerEssenciais }: Props) {
   );
 }
 
-function CartaoAcabando({ previsoes, aoAbrir }: { previsoes: PrevisaoEssencial[]; aoAbrir: () => void }) {
+function CartaoAcabando({
+  previsoes,
+  aoAbrir,
+  aoConfigurar,
+}: {
+  previsoes: PrevisaoEssencial[];
+  aoAbrir: () => void;
+  aoConfigurar: () => void;
+}) {
   if (previsoes.length === 0) {
     return (
-      <Pressable style={estilos.cartao} onPress={aoAbrir}>
+      <Pressable style={estilos.cartao} onPress={aoConfigurar}>
         <Text style={{ color: cores.texto, fontWeight: '600' }}>Avisos de reposição</Text>
         <Text style={{ color: cores.suave, marginTop: 4 }}>
           Marque os itens que não podem faltar e o app avisa quando estiverem acabando ›
@@ -164,7 +174,7 @@ function CartaoAcabando({ previsoes, aoAbrir }: { previsoes: PrevisaoEssencial[]
           </Text>
         </View>
       ))}
-      <Text style={{ color: cores.suave, fontSize: 12, marginTop: 6 }}>Toque para ver os essenciais ›</Text>
+      <Text style={{ color: cores.suave, fontSize: 12, marginTop: 6 }}>Já está na lista de compras · toque para ver ›</Text>
     </Pressable>
   );
 }

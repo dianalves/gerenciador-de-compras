@@ -395,3 +395,68 @@ def apagar_essencial(sessao: Session, essencial_id: int) -> None:
         raise LookupError("Essencial não encontrado")
     sessao.delete(e)
     sessao.commit()
+
+
+# ---- correção pelo usuário: "ainda tenho" ----
+
+def _para_unidade_do_produto(quantidade: Decimal, unidade_essencial: str, produto: Produto,
+                             unidade_item: str) -> tuple[Decimal, str]:
+    """Inverso de na_unidade: X kg do essencial -> quantas embalagens desse produto."""
+    unidade_item = (unidade_item or "UN").upper()
+    if unidade_essencial == "un" or unidade_item in ("KG", "L", "LT"):
+        return quantidade, unidade_item
+    if unidade_essencial == "kg" and produto.unidade_tamanho == "g" and produto.tamanho:
+        return (quantidade * 1000 / produto.tamanho).quantize(Decimal("0.001")), "UN"
+    if unidade_essencial == "L" and produto.unidade_tamanho == "ml" and produto.tamanho:
+        return (quantidade * 1000 / produto.tamanho).quantize(Decimal("0.001")), "UN"
+    return quantidade, {"kg": "KG", "L": "L"}.get(unidade_essencial, "UN")
+
+
+def ainda_tenho(sessao: Session, essencial_id: int, quantidade: Decimal,
+                hoje: Optional[date] = None) -> Previsao:
+    """O usuário corrige a estimativa: "ainda tenho X" (na unidade do essencial).
+
+    Zera os outros produtos do essencial e deixa X no mais recente; vira ajuste com a data de
+    hoje (nova referência da previsão) e tira a sugestão da lista de compras.
+    """
+    from compras.banco.modelos import ItemLista, MovimentoEstoque
+    from compras.estoque.servico import ajustar
+
+    if quantidade < 0:
+        raise ValueError("A quantidade não pode ser negativa")
+    e = sessao.get(Essencial, essencial_id)
+    if e is None:
+        raise LookupError("Essencial não encontrado")
+
+    em_casa = [(i, sessao.get(Produto, i.produto_id)) for i in saldo(sessao)]
+    do_essencial = [(i, p) for i, p in em_casa if produto_e_do_essencial(p, e)]
+
+    if do_essencial:
+        alvo_item, alvo = do_essencial[0]
+        recentes = [d for d in (ultimo_movimento(sessao, i.produto_id) for i, _ in do_essencial)]
+        alvo_item, alvo = max(zip(do_essencial, recentes),
+                              key=lambda par: par[1] or date.min)[0]
+        unidade_item = alvo_item.unidade
+    else:  # nada no estoque: usa o último comprado com esse nome, ou cria pelo nome
+        from compras.produtos.servico import produto_para
+
+        comprados = produtos_do_nome(sessao, e.nome)
+        alvo = comprados[0] if comprados else produto_para(sessao, e.nome)
+        unidade_item = "KG" if e.unidade == "kg" and not alvo.tamanho else "UN"
+
+    for item, produto in do_essencial:
+        if produto.id != alvo.id:
+            ajustar(sessao, produto.id, Decimal("0"))
+
+    qtd_produto, unidade_produto = _para_unidade_do_produto(quantidade, e.unidade, alvo, unidade_item)
+    tem = next((i for i, p in do_essencial if p.id == alvo.id and i.unidade == unidade_produto), None)
+    atual = tem.quantidade if tem is not None else Decimal("0")
+    # grava SEMPRE, mesmo sem diferença: a data da confirmação vira a nova referência
+    sessao.add(MovimentoEstoque(produto_id=alvo.id, quantidade=qtd_produto - atual,
+                                unidade=unidade_produto, tipo="ajuste"))
+
+    for item in sessao.scalars(select(ItemLista).where(
+            ItemLista.essencial_id == e.id, ItemLista.status == "pendente")):
+        item.status = "removido"
+    sessao.commit()
+    return next(p for p in prever(sessao, hoje) if p.essencial_id == e.id)
